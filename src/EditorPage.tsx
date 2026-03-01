@@ -10,11 +10,12 @@ export default function EditorPage(){
     const [selectedObject, setSelectedObject] = useState<ObjectProperties | null >( {
         translation: new Vector2(0,0),
         scale: new Vector2(1,1),
-        rotation: new Vector2(0,0),
+        rotation: 0, //in degrees
     });
 
     const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
         setSelectedObject(newProp);
+        console.log(newProp);
     }
 
     return <div className="EditorPage">

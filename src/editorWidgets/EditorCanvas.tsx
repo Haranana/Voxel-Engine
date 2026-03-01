@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
 import type { ObjectProperties } from "../RenderableObjectTypes";
 import { Vector2 } from "../math/vector2.type";
+import { degreeToRadians } from "../math/utils";
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null
@@ -124,6 +125,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 color: vec4f,
                 resolution: vec2f,
                 translation: vec2f,
+                scale: vec2f,
+                rotation: vec2f,
             };
 
             struct Vertex{
@@ -140,8 +143,13 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 v: Vertex) -> VertexShaderOutput {
                 
                 var out: VertexShaderOutput;
+                let scaledPosition = vec2f(v.position.x * uniformData.scale.x , v.position.y * uniformData.scale.y);
+                let rotatedPosition = vec2f(
+                    scaledPosition.x * uniformData.rotation.x - scaledPosition.y * uniformData.rotation.y,
+                    scaledPosition.x * uniformData.rotation.y + scaledPosition.y * uniformData.rotation.x,
+                );
 
-                let vertPixelPosition = v.position + uniformData.translation;
+                let vertPixelPosition = rotatedPosition + uniformData.translation;
                 let vertNdcPosition = ((((vertPixelPosition/uniformData.resolution)*2.0)-1.0)*vec2f(1,-1));
                 out.position = vec4f(vertNdcPosition, 0.0, 1.0);
                 
@@ -252,7 +260,12 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             const view = context!.getCurrentTexture().createView();
 
             const objectTranslation : Vector2 = props.objectProperties? props.objectProperties.translation : new Vector2(0,0);
-            const shadersUniformsValuesTranslation = [objectTranslation.x , objectTranslation.y]
+            const objectScale : Vector2 = props.objectProperties? props.objectProperties.scale : new Vector2(0,0);
+            const objectRotation: number = props.objectProperties? props.objectProperties.rotation : 0;
+
+            const shadersUniformsValuesTranslation = [objectTranslation.x , objectTranslation.y];
+            const shadersUniformsValuesScale = [objectScale.x , objectScale.y];
+            const shadersUniformsValuesRotation = [ Math.cos(degreeToRadians(objectRotation)), Math.sin(degreeToRadians(objectRotation))];
             
             const renderPassDescriptor : GPURenderPassDescriptor = {
             label: `basic canvas renderPass`,
@@ -275,6 +288,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             uniformView.set({
                 resolution: shadersUniformsValuesResolution,
                 translation: shadersUniformsValuesTranslation,
+                scale: shadersUniformsValuesScale,
+                rotation: shadersUniformsValuesRotation,
             });
             device!.queue.writeBuffer(uniformDataBuffer, 0, uniformView.arrayBuffer);
 
