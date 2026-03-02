@@ -1,3 +1,5 @@
+import { Vector3 } from "./vector3.type";
+
 export type Mat3 = [
   [number, number, number],
   [number, number, number],
@@ -156,5 +158,15 @@ export class Matrix3 {
       `[ ${m[1][0]} ${m[1][1]} ${m[1][2]} ]`,
       `[ ${m[2][0]} ${m[2][1]} ${m[2][2]} ]`,
     ].join("\n");
+  }
+
+  toArrays(): number[][]{
+    const m = this.matrix;
+    return([
+      [m[0][0], m[1][0], m[2][0]],
+      [m[0][1], m[1][1], m[2][1]],
+      [m[0][2], m[1][2], m[2][2]],
+    ]);
+
   }
 }

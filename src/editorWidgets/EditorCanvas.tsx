@@ -3,6 +3,8 @@ import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } fr
 import type { ObjectProperties } from "../RenderableObjectTypes";
 import { Vector2 } from "../math/vector2.type";
 import { degreeToRadians } from "../math/utils";
+import type { Matrix3 } from "../math/matrix3.type";
+import { Matrices3 } from "../math/matrices";
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null
@@ -124,9 +126,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             struct UniformDataStruct{
                 color: vec4f,
                 resolution: vec2f,
-                translation: vec2f,
-                scale: vec2f,
-                rotation: vec2f,
+                objectTransform: mat3x3f,
+                ndcProjection: mat3x3f    
             };
 
             struct Vertex{
@@ -143,14 +144,9 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 v: Vertex) -> VertexShaderOutput {
                 
                 var out: VertexShaderOutput;
-                let scaledPosition = vec2f(v.position.x * uniformData.scale.x , v.position.y * uniformData.scale.y);
-                let rotatedPosition = vec2f(
-                    scaledPosition.x * uniformData.rotation.x - scaledPosition.y * uniformData.rotation.y,
-                    scaledPosition.x * uniformData.rotation.y + scaledPosition.y * uniformData.rotation.x,
-                );
+                let vertPixelPosition = (uniformData.objectTransform * vec3f(v.position, 1));
 
-                let vertPixelPosition = rotatedPosition + uniformData.translation;
-                let vertNdcPosition = ((((vertPixelPosition/uniformData.resolution)*2.0)-1.0)*vec2f(1,-1));
+                let vertNdcPosition = (uniformData.ndcProjection * vertPixelPosition).xy;
                 out.position = vec4f(vertNdcPosition, 0.0, 1.0);
                 
                 return out;
@@ -259,13 +255,12 @@ export default function EditorCanvas(props: EditorCanvasProps) {
 
             const view = context!.getCurrentTexture().createView();
 
-            const objectTranslation : Vector2 = props.objectProperties? props.objectProperties.translation : new Vector2(0,0);
-            const objectScale : Vector2 = props.objectProperties? props.objectProperties.scale : new Vector2(0,0);
-            const objectRotation: number = props.objectProperties? props.objectProperties.rotation : 0;
+            const objectTranslation : Matrix3 = props.objectProperties? Matrices3.translation(props.objectProperties.translation) : Matrices3.identity();
+            const objectScale : Matrix3 = props.objectProperties? Matrices3.scaling(props.objectProperties.scale) : Matrices3.identity();
+            const objectRotation: Matrix3 = props.objectProperties? Matrices3.rotation(degreeToRadians(props.objectProperties.rotation)) : Matrices3.identity();
 
-            const shadersUniformsValuesTranslation = [objectTranslation.x , objectTranslation.y];
-            const shadersUniformsValuesScale = [objectScale.x , objectScale.y];
-            const shadersUniformsValuesRotation = [ Math.cos(degreeToRadians(objectRotation)), Math.sin(degreeToRadians(objectRotation))];
+            const shadersUniformsObjectTransformMatrix = objectTranslation.multMatrix(objectRotation).multMatrix(objectScale).toArrays();
+            const shadersUniformsNdcProjectionMatrix = Matrices3.ndcProjection(canvas.width, canvas.height).toArrays();
             
             const renderPassDescriptor : GPURenderPassDescriptor = {
             label: `basic canvas renderPass`,
@@ -273,8 +268,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 {
                     view,
                     loadOp: 'clear',
-                    storeOp: 'store',
-                    
+                    storeOp: 'store',                    
                 },
             ],
             };
@@ -287,9 +281,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             const shadersUniformsValuesResolution = [canvas!.width, canvas!.height];
             uniformView.set({
                 resolution: shadersUniformsValuesResolution,
-                translation: shadersUniformsValuesTranslation,
-                scale: shadersUniformsValuesScale,
-                rotation: shadersUniformsValuesRotation,
+                objectTransform: shadersUniformsObjectTransformMatrix,
+                ndcProjection: shadersUniformsNdcProjectionMatrix,
             });
             device!.queue.writeBuffer(uniformDataBuffer, 0, uniformView.arrayBuffer);
 

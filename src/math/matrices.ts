@@ -1,8 +1,18 @@
 import {type Mat3, Matrix3 } from "./matrix3.type";
 import {type Mat4, Matrix4 } from "./matrix4.type";
+import type { Vector2 } from "./vector2.type";
 import {type Vector3 } from "./vector3.type";
 
 export const Matrices3 = {
+  ndcProjection(width: number, height: number): Matrix3{
+    const m: Mat3 = [
+      [2/width,0,0],
+      [0,-2/height,0],
+      [-1,1,1],
+    ];
+    return new Matrix3(m);
+  },
+  
   identity(): Matrix3 {
     const m: Mat3 = [
       [1, 0, 0],
@@ -12,19 +22,19 @@ export const Matrices3 = {
     return new Matrix3(m);
   },
 
-  translation(x: number, y: number): Matrix3 {
+  translation(v: Vector2): Matrix3 {
     const m: Mat3 = [
-      [1, 0, x],
-      [0, 1, y],
+      [1, 0, v.x],
+      [0, 1, v.y],
       [0, 0, 1],
     ];
     return new Matrix3(m);
   },
 
-  scaling(x: number, y: number): Matrix3 {
+  scaling(v: Vector2): Matrix3 {
     const m: Mat3 = [
-      [x, 0, 0],
-      [0, y, 0],
+      [v.x, 0, 0],
+      [0, v.y, 0],
       [0, 0, 1],
     ];
     return new Matrix3(m);
@@ -41,10 +51,10 @@ export const Matrices3 = {
     return new Matrix3(m);
   },
 
-  shearing(x: number, y: number): Matrix3 {
+  shearing(v: Vector2): Matrix3 {
     const m: Mat3 = [
-      [1, x, 0],
-      [y, 1, 0],
+      [1, v.x, 0],
+      [v.y, 1, 0],
       [0, 0, 1],
     ];
     return new Matrix3(m);
@@ -63,28 +73,27 @@ export const Matrices4 = {
     return new Matrix4(m);
   },
 
-  translation(x: number, y: number, z: number): Matrix4 {
+  translation(v: Vector3): Matrix4 {
     const m: Mat4 = [
-      [1, 0, 0, x],
-      [0, 1, 0, y],
-      [0, 0, 1, z],
+      [1, 0, 0, v.x],
+      [0, 1, 0, v.y],
+      [0, 0, 1, v.z],
       [0, 0, 0, 1],
     ];
     return new Matrix4(m);
   },
 
-  scaling(x: number, y: number, z: number): Matrix4 {
+  scaling(v: Vector3): Matrix4 {
     const m: Mat4 = [
-      [x, 0, 0, 0],
-      [0, y, 0, 0],
-      [0, 0, z, 0],
+      [v.x, 0, 0, 0],
+      [0, v.y, 0, 0],
+      [0, 0, v.z, 0],
       [0, 0, 0, 1],
     ];
     return new Matrix4(m);
   },
 
   rotation(angleX: number, angleY: number, angleZ: number): Matrix4 {
-    // jak w C++: Rz * Ry * Rx
     return this.rotationZ(angleZ).multMatrix(this.rotationY(angleY)).multMatrix(this.rotationX(angleX));
   },
 
