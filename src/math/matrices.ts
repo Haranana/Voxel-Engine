@@ -4,7 +4,7 @@ import type { Vector2 } from "./vector2.type";
 import {type Vector3 } from "./vector3.type";
 
 export const Matrices3 = {
-  ndcProjection(width: number, height: number): Matrix3{
+  ndcProjection2D(width: number, height: number): Matrix3{
     const m: Mat3 = [
       [2/width,0,0],
       [0,-2/height,0],
@@ -12,7 +12,7 @@ export const Matrices3 = {
     ];
     return new Matrix3(m);
   },
-  
+
   identity(): Matrix3 {
     const m: Mat3 = [
       [1, 0, 0],
@@ -144,7 +144,7 @@ export const Matrices4 = {
 } as const;
 
 
-export const LightMatrices = {
+export const PerspectiveMatrices = {
   lightView(eye: Vector3, target: Vector3, up: Vector3): Matrix4 {
    
     const f = target.subVector(eye).normalize();      // forward
@@ -160,7 +160,7 @@ export const LightMatrices = {
     return new Matrix4(m);
   },
 
-  orthogonalLightProjection(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
+  orthogonalProjection(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
     const m: Mat4 = [
       [2 / (right - left), 0, 0, -(right + left) / (right - left)],
       [0, 2 / (top - bottom), 0, -(top + bottom) / (top - bottom)],
@@ -170,7 +170,7 @@ export const LightMatrices = {
     return new Matrix4(m);
   },
 
-  PerspectiveLightProjection(fovY: number, near: number, far: number, screenAscpect: number): Matrix4 {
+  PerspectiveProjection(fovY: number, near: number, far: number, screenAscpect: number): Matrix4 {
     const s = 1.0 / Math.tan(fovY * 0.5);
     const m: Mat4 = [
       [s / screenAscpect, 0, 0, 0],

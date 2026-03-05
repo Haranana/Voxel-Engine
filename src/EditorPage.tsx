@@ -5,23 +5,24 @@ import EditorCanvas from './editorWidgets/EditorCanvas'
 import RenderableObjectProperties from './editorWidgets/RenderableObjectProperties'
 import type { ObjectProperties } from './RenderableObjectTypes';
 import { Vector2 } from './math/vector2.type';
+import { Vector3 } from './math/vector3.type';
 
 export default function EditorPage(){
-    const [selectedObject, setSelectedObject] = useState<ObjectProperties | null >( {
-        translation: new Vector2(0,0),
-        scale: new Vector2(1,1),
-        rotation: 0, //in degrees
+    const [selectedObjectProperties, setSelectedObjectProperties] = useState<ObjectProperties | null >( {
+        translation: new Vector3(0,0,0),
+        scale: new Vector3(1,1,1),
+        rotation: new Vector3(0,0,0), //in degrees
     });
 
     const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
-        setSelectedObject(newProp);
+        setSelectedObjectProperties(newProp);
         console.log(newProp);
     }
 
     return <div className="EditorPage">
-        <EditorCanvas objectProperties={selectedObject}  ></EditorCanvas>
-        {selectedObject == null? "" : <RenderableObjectProperties 
-        objectProperties={selectedObject} 
+        <EditorCanvas objectProperties={selectedObjectProperties}  ></EditorCanvas>
+        {selectedObjectProperties == null? "" : <RenderableObjectProperties 
+        objectProperties={selectedObjectProperties} 
         onPropertiesChange={onSelectedObjectPropertiesChanged}>
             </RenderableObjectProperties>}
 

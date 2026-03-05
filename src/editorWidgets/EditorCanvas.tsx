@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
 import type { ObjectProperties } from "../RenderableObjectTypes";
-import { Vector2 } from "../math/vector2.type";
 import { degreeToRadians } from "../math/utils";
 import type { Matrix3 } from "../math/matrix3.type";
-import { Matrices3 } from "../math/matrices";
+import { Matrices3, Matrices4, PerspectiveMatrices } from "../math/matrices";
+import type { Matrix4 } from "../math/matrix4.type";
+
+
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null
@@ -17,13 +19,14 @@ type RenderData = {
     uniformDataBuffer : GPUBuffer | null,
     bindGroup : GPUBindGroup | null,
     uniformView: StructuredView | null,
-    indexBuffer: GPUBuffer | null,
     vertexBuffer: GPUBuffer | null,
     verticesAmount: number | null,
+    depthTexture: GPUTexture | null,
 };
 
 export default function EditorCanvas(props: EditorCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const initializedRef = useRef(false);
     const renderDataRef = useRef<RenderData>({
         context : null,
         device : null,
@@ -31,14 +34,14 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         uniformDataBuffer : null,
         bindGroup : null,
         uniformView: null,
-        indexBuffer: null,
         vertexBuffer: null,
         verticesAmount: null,
+        depthTexture: null,
     });
 
     const canRender = () => {
         const r = renderDataRef.current;
-        return r.context && r.device && r.pipeline && r.uniformDataBuffer && r.bindGroup && r.uniformView && r.indexBuffer && r.vertexBuffer && r.verticesAmount; 
+        return r.context && r.device && r.pipeline && r.uniformDataBuffer && r.bindGroup && r.uniformView  && r.vertexBuffer && r.verticesAmount; 
     }
 
     const rand = (min: number, max: number) => {
@@ -63,36 +66,107 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     };
 
     const getSampleFData = () => {
-          const vertexData = new Float32Array([
-            // left column
-            0, 0,
-            30, 0,
-            0, 150,
-            30, 150,
+        const positions = [
+        // left column
+    0, 0, 0,
+    30, 0, 0,
+    0, 150, 0,
+    30, 150, 0,
+
+    // top rung
+    30, 0, 0,
+    100, 0, 0,
+    30, 30, 0,
+    100, 30, 0,
+
+    // middle rung
+    30, 60, 0,
+    70, 60, 0,
+    30, 90, 0,
+    70, 90, 0,
+
+    // left column back
+    0, 0, 30,
+    30, 0, 30,
+    0, 150, 30,
+    30, 150, 30,
+
+    // top rung back
+    30, 0, 30,
+    100, 0, 30,
+    30, 30, 30,
+    100, 30, 30,
+
+    // middle rung back
+    30, 60, 30,
+    70, 60, 30,
+    30, 90, 30,
+    70, 90, 30,
+        ];
         
-            // top rung
-            30, 0,
-            100, 0,
-            30, 30,
-            100, 30,
-        
-            // middle rung
-            30, 60,
-            70, 60,
-            30, 90,
-            70, 90,
-        ]);
-        
-        const indexData = new Uint32Array([
-            0,  1,  2,    2,  1,  3,  // left column
-            4,  5,  6,    6,  5,  7,  // top run
-            8,  9, 10,   10,  9, 11,  // middle run
-        ]);
+
+        const indices = [
+    // front
+    0,  1,  2,    2,  1,  3,  // left column
+    4,  5,  6,    6,  5,  7,  // top run
+    8,  9, 10,   10,  9, 11,  // middle run
+
+    // back
+    12,  14,  13,   14, 15, 13,  // left column back
+    16,  18,  17,   18, 19, 17,  // top run back
+    20,  22,  21,   22, 23, 21,  // middle run back
+
+    0, 12, 5,   12, 17, 5,   // top
+    5, 17, 7,   17, 19, 7,   // top rung right
+    6, 7, 18,   18, 7, 19,   // top rung bottom
+    6, 18, 8,   18, 20, 8,   // between top and middle rung
+    8, 20, 9,   20, 21, 9,   // middle rung top
+    9, 21, 11,  21, 23, 11,  // middle rung right
+    10, 11, 22, 22, 11, 23,  // middle rung bottom
+    10, 22, 3,  22, 15, 3,   // stem right
+    2, 3, 14,   14, 3, 15,   // bottom
+    0, 2, 12,   12, 2, 14,   // left
+        ];
+
+        const quadColors = [
+            200,  70, 120,  // left column front
+      200,  70, 120,  // top rung front
+      200,  70, 120,  // middle rung front
+
+       80,  70, 200,  // left column back
+       80,  70, 200,  // top rung back
+       80,  70, 200,  // middle rung back
+
+       70, 200, 210,  // top
+      160, 160, 220,  // top rung right
+       90, 130, 110,  // top rung bottom
+      200, 200,  70,  // between top and middle rung
+      210, 100,  70,  // middle rung top
+      210, 160,  70,  // middle rung right
+       70, 180, 210,  // middle rung bottom
+      100,  70, 210,  // stem right
+       76, 210, 100,  // bottom
+      140, 210,  80,  // left
+        ];
+
+        const numVertices = indices.length;
+        const vertexData = new Float32Array(numVertices * 4); // xyz + color
+        const colorData = new Uint8Array(vertexData.buffer);
+
+        for(let i = 0; i<indices.length; i++){
+            const vertexPositionsStart = indices[i]*3;
+            const vertexPositions = positions.slice(vertexPositionsStart , vertexPositionsStart+3);
+            vertexData.set(vertexPositions, i*4);
+            
+            const quadPositionStart = Math.floor(i/6)*3;
+            const quadColor = quadColors.slice(quadPositionStart, quadPositionStart + 3);
+            colorData.set(quadColor, i * 16 + 12);  
+            colorData[i * 16 + 15] = 255;       
+        }
         
         return {
             vertexData,
-            indexData,
-            numVertices: indexData.length,
+            numVertices: numVertices,
         };
     }
 
@@ -124,18 +198,20 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         
         const shadersCode = `
             struct UniformDataStruct{
-                color: vec4f,
                 resolution: vec2f,
-                objectTransform: mat3x3f,
-                ndcProjection: mat3x3f    
+                _pad: vec2f,
+                objectTransform: mat4x4f,
+                ndcProjection: mat4x4f    
             };
 
             struct Vertex{
-                @location(0) position: vec2f,
+                @location(0) position: vec3f,
+                @location(1) color: vec4f,
             };
 
             struct VertexShaderOutput{
                 @builtin(position) position: vec4f,
+                @location(0) color: vec4f,
             }
 
             @group(0) @binding(0) var<uniform> uniformData: UniformDataStruct;
@@ -144,16 +220,17 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 v: Vertex) -> VertexShaderOutput {
                 
                 var out: VertexShaderOutput;
-                let vertPixelPosition = (uniformData.objectTransform * vec3f(v.position, 1));
+                let vertPixelPosition = uniformData.objectTransform * vec4f(v.position, 1.0);
 
-                let vertNdcPosition = (uniformData.ndcProjection * vertPixelPosition).xy;
-                out.position = vec4f(vertNdcPosition, 0.0, 1.0);
-                
+                let vertNdcPosition = (uniformData.ndcProjection * vertPixelPosition).xyz;
+                out.position = vec4f(vertNdcPosition, 1.0);
+                out.color = v.color;
+
                 return out;
             }
         
-            @fragment fn fragmentShader() -> @location(0) vec4f {
-                return uniformData.color;
+            @fragment fn fragmentShader(vnOut: VertexShaderOutput) -> @location(0) vec4f {
+                return vnOut.color;
             }
         `
 
@@ -170,12 +247,17 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 module: baseShaderModule,
                 buffers:[
                     {
-                        arrayStride: 2*4,
+                        arrayStride: 4*4,
                         attributes:[
                             {
                                 shaderLocation: 0,
                                 offset: 0,
-                                format: 'float32x2',
+                                format: 'float32x3',
+                            },
+                            {
+                                shaderLocation: 1,
+                                offset: 12,
+                                format: 'unorm8x4',
                             }
                         ]
                     }
@@ -186,12 +268,18 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 module: baseShaderModule,
                 targets: [{format: presentationFormat}],
             },
+            primitive: {
+                cullMode: 'front',
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'less',
+                format: 'depth24plus',
+            },
         });
 
         const shaderDef = makeShaderDataDefinitions(shadersCode);
         const shadersUniformsView = makeStructuredView(shaderDef.uniforms.uniformData);
-        const shadersUniformsValuesColor = [rand(0,1), rand(0,1), rand(0,1), 1];
-        shadersUniformsView.set({color: shadersUniformsValuesColor});
 
         const uniformDataBuffer = device.createBuffer({
             label: 'uniform buffer',
@@ -200,26 +288,20 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         });
 
 
-        const {vertexData, indexData, numVertices} = getSampleFData();
+        const {vertexData, numVertices} = getSampleFData();
         const vertexDataBuffer = device.createBuffer({
             label: 'vertex data buffer',
             size: vertexData.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
         });
-        const indexDataBuffer = device.createBuffer({
-            label: 'index data buffer',
-            size: indexData.byteLength,
-            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-        });
         device.queue.writeBuffer(vertexDataBuffer , 0 , vertexData);
-        device.queue.writeBuffer(indexDataBuffer, 0 , indexData);
 
         const bindGroup = device.createBindGroup({
             label: 'bind group for uniform data',
             layout: pipeline.getBindGroupLayout(0),
             entries:[{
                 binding: 0,
-                resource: uniformDataBuffer,
+                resource: {buffer: uniformDataBuffer},
             }]
         })
 
@@ -229,7 +311,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         renderDataRef.current.uniformDataBuffer = uniformDataBuffer;
         renderDataRef.current.bindGroup = bindGroup;
         renderDataRef.current.uniformView = shadersUniformsView;
-        renderDataRef.current.indexBuffer = indexDataBuffer;
+        //renderDataRef.current.indexBuffer = [indexDataBuffer];
         renderDataRef.current.vertexBuffer = vertexDataBuffer;
         renderDataRef.current.verticesAmount = numVertices;
         
@@ -249,19 +331,38 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const uniformDataBuffer = r.uniformDataBuffer!;
         const bindGroup = r.bindGroup!;
         const uniformView = r.uniformView!;
-        const indexBuffer = r.indexBuffer!;
+        //const indexBuffer = r.indexBuffer!;
         const vertexBuffer = r.vertexBuffer!;
         const verticesAmount = r.verticesAmount!;
+        let depthTexture = r.depthTexture;
 
-            const view = context!.getCurrentTexture().createView();
+        const canvasTexture = context.getCurrentTexture();
+        const view = canvasTexture.createView();
 
-            const objectTranslation : Matrix3 = props.objectProperties? Matrices3.translation(props.objectProperties.translation) : Matrices3.identity();
-            const objectScale : Matrix3 = props.objectProperties? Matrices3.scaling(props.objectProperties.scale) : Matrices3.identity();
-            const objectRotation: Matrix3 = props.objectProperties? Matrices3.rotation(degreeToRadians(props.objectProperties.rotation)) : Matrices3.identity();
+            const objectTranslation : Matrix4 = props.objectProperties? Matrices4.translation(props.objectProperties.translation) : Matrices4.identity();
+            const objectScale : Matrix4 = props.objectProperties? Matrices4.scaling(props.objectProperties.scale) : Matrices4.identity();
+            const objectRotation: Matrix4 = props.objectProperties? Matrices4.rotation(degreeToRadians(props.objectProperties.rotation.x), degreeToRadians(props.objectProperties.rotation.y), degreeToRadians(props.objectProperties.rotation.z)) : Matrices4.identity();
 
             const shadersUniformsObjectTransformMatrix = objectTranslation.multMatrix(objectRotation).multMatrix(objectScale).toArrays();
-            const shadersUniformsNdcProjectionMatrix = Matrices3.ndcProjection(canvas.width, canvas.height).toArrays();
+            const shadersUniformsNdcProjectionMatrix = PerspectiveMatrices.orthogonalProjection(0, canvas.width,0, canvas.height, -400, 400).toArrays();
             
+            
+            
+            if (!depthTexture ||
+                depthTexture.width !== canvasTexture.width ||
+                depthTexture.height !== canvasTexture.height) {
+            if (depthTexture) {
+                depthTexture.destroy();
+            }
+            depthTexture = device.createTexture({
+                size: [canvasTexture.width, canvasTexture.height],
+                format: 'depth24plus',
+                usage: GPUTextureUsage.RENDER_ATTACHMENT,
+            });
+            }
+            r.depthTexture = depthTexture;
+            const depthStencilAttachmentView = depthTexture.createView();
+
             const renderPassDescriptor : GPURenderPassDescriptor = {
             label: `basic canvas renderPass`,
             colorAttachments: [
@@ -271,6 +372,12 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                     storeOp: 'store',                    
                 },
             ],
+                depthStencilAttachment: {
+                view: depthStencilAttachmentView,
+                depthClearValue: 1.0,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+                },
             };
             
             const encoder : GPUCommandEncoder = device!.createCommandEncoder({
@@ -289,9 +396,9 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             const pass : GPURenderPassEncoder = encoder.beginRenderPass(renderPassDescriptor);
             pass.setPipeline(pipeline);
             pass.setVertexBuffer(0 , vertexBuffer);
-            pass.setIndexBuffer(indexBuffer, 'uint32');
+            //pass.setIndexBuffer(indexBuffer, 'uint32');
             pass.setBindGroup(0, bindGroup);
-            pass.drawIndexed(verticesAmount);
+            pass.draw(verticesAmount);
             pass.end();
 
             const commandBuffer = encoder.finish();
@@ -299,7 +406,10 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         }
 
   useEffect(() => {
+      if (initializedRef.current) return;
+  initializedRef.current = true;
     let requestedAnimationFrame = 0;
+    
     renderSampleObject().catch((e) => console.error(e));
     return () => cancelAnimationFrame(requestedAnimationFrame);
   }, []);
