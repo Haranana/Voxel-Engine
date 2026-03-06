@@ -269,7 +269,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 targets: [{format: presentationFormat}],
             },
             primitive: {
-                cullMode: 'front',
+                cullMode: 'back',
             },
             depthStencil: {
                 depthWriteEnabled: true,
