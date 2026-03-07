@@ -9,18 +9,17 @@ import { Vector3 } from './math/vector3.type';
 
 export default function EditorPage(){
     const [selectedObjectProperties, setSelectedObjectProperties] = useState<ObjectProperties | null >( {
-        translation: new Vector3(0,0,0),
+        translation: new Vector3(0,0,-500),
         scale: new Vector3(1,1,1),
         rotation: new Vector3(0,0,0), //in degrees
     });
 
     const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
         setSelectedObjectProperties(newProp);
-        console.log(newProp);
     }
 
     return <div className="EditorPage">
-        <EditorCanvas objectProperties={selectedObjectProperties}  ></EditorCanvas>
+        <EditorCanvas objectProperties={selectedObjectProperties} cameraProjection={"perspective"}  ></EditorCanvas>
         {selectedObjectProperties == null? "" : <RenderableObjectProperties 
         objectProperties={selectedObjectProperties} 
         onPropertiesChange={onSelectedObjectPropertiesChanged}>

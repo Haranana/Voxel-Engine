@@ -163,9 +163,9 @@ export const PerspectiveMatrices = {
   orthogonalProjection(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
     
     const m: Mat4 = [
-      [2 / (right - left), 0, 0, -(left) / (right - left)],
-      [0, (-1)*(2 / (top - bottom)), 0, (bottom) / (top - bottom)],
-      [0, 0, -2 / (far - near), -(near) / (far - near)],
+      [2 / (right - left), 0, 0, -(right+left) / (right - left)],
+      [0, (-1)*(2 / (top - bottom)), 0, (top+bottom) / (top - bottom)],
+      [0, 0, 1 / (far - near), -(near) / (far - near)],
       [0, 0, 0, 1],
     ];
     return new Matrix4(m);
@@ -175,8 +175,8 @@ export const PerspectiveMatrices = {
     const s = 1.0 / Math.tan(fovY * 0.5);
     const m: Mat4 = [
       [s / screenAscpect, 0, 0, 0],
-      [0, s, 0, 0],
-      [0, 0, -(far + near) / (far - near), (-2 * far * near) / (far - near)],
+      [0, (-1)*s, 0, 0],
+      [0, 0, far / (near - far), (far * near) / (near - far)],
       [0, 0, -1, 0],
     ];
     return new Matrix4(m);

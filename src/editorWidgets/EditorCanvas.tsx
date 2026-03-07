@@ -7,9 +7,13 @@ import { Matrices3, Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 
 
+export type ProjectionType =
+  | "orthographic"
+  | "perspective";
 
 export type EditorCanvasProps = {
-    objectProperties: ObjectProperties | null
+    objectProperties: ObjectProperties | null;
+    cameraProjection: ProjectionType;
 }
 
 type RenderData = {
@@ -222,8 +226,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 var out: VertexShaderOutput;
                 let vertPixelPosition = uniformData.objectTransform * vec4f(v.position, 1.0);
 
-                let vertNdcPosition = (uniformData.ndcProjection * vertPixelPosition).xyz;
-                out.position = vec4f(vertNdcPosition, 1.0);
+                let vertNdcPosition = (uniformData.ndcProjection * vertPixelPosition).xyzw;
+                out.position = vec4f(vertNdcPosition);
                 out.color = v.color;
 
                 return out;
@@ -343,10 +347,13 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             const objectScale : Matrix4 = props.objectProperties? Matrices4.scaling(props.objectProperties.scale) : Matrices4.identity();
             const objectRotation: Matrix4 = props.objectProperties? Matrices4.rotation(degreeToRadians(props.objectProperties.rotation.x), degreeToRadians(props.objectProperties.rotation.y), degreeToRadians(props.objectProperties.rotation.z)) : Matrices4.identity();
 
+
             const shadersUniformsObjectTransformMatrix = objectTranslation.multMatrix(objectRotation).multMatrix(objectScale).toArrays();
-            const shadersUniformsNdcProjectionMatrix = PerspectiveMatrices.orthogonalProjection(0, canvas.width,0, canvas.height, -400, 400).toArrays();
+            const shadersUniformsNdcProjectionMatrix = props.cameraProjection==="orthographic"?
+             PerspectiveMatrices.orthogonalProjection(0, canvas.width,0, canvas.height, 0.1, 1000).toArrays() 
+             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(60), 0.1, 1000, canvas.width/canvas.height).toArrays();
             
-            
+            console.log(shadersUniformsNdcProjectionMatrix.toString());
             
             if (!depthTexture ||
                 depthTexture.width !== canvasTexture.width ||
