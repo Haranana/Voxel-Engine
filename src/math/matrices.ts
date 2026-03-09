@@ -165,7 +165,7 @@ export const PerspectiveMatrices = {
     const m: Mat4 = [
       [2 / (right - left), 0, 0, -(right+left) / (right - left)],
       [0, (-1)*(2 / (top - bottom)), 0, (top+bottom) / (top - bottom)],
-      [0, 0, 1 / (far - near), -(near) / (far - near)],
+      [0, 0, (-1) / (far - near), -(near) / (far - near)],
       [0, 0, 0, 1],
     ];
     return new Matrix4(m);

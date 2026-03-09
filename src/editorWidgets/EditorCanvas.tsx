@@ -2,18 +2,13 @@ import { useEffect, useRef } from "react";
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
 import type { ObjectProperties } from "../RenderableObjectTypes";
 import { degreeToRadians } from "../math/utils";
-import type { Matrix3 } from "../math/matrix3.type";
-import { Matrices3, Matrices4, PerspectiveMatrices } from "../math/matrices";
+import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
-
-
-export type ProjectionType =
-  | "orthographic"
-  | "perspective";
+import type { Camera } from "../classes/camera";
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null;
-    cameraProjection: ProjectionType;
+    camera: Camera;
 }
 
 type RenderData = {
@@ -205,7 +200,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 resolution: vec2f,
                 _pad: vec2f,
                 objectTransform: mat4x4f,
-                ndcProjection: mat4x4f    
+                ndcProjection: mat4x4f,    
+                viewMatrix: mat4x4f,
             };
 
             struct Vertex{
@@ -226,7 +222,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 var out: VertexShaderOutput;
                 let vertPixelPosition = uniformData.objectTransform * vec4f(v.position, 1.0);
 
-                let vertNdcPosition = (uniformData.ndcProjection * vertPixelPosition).xyzw;
+                let vertNdcPosition = (uniformData.ndcProjection * uniformData.viewMatrix * vertPixelPosition).xyzw;
                 out.position = vec4f(vertNdcPosition);
                 out.color = v.color;
 
@@ -340,6 +336,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const verticesAmount = r.verticesAmount!;
         let depthTexture = r.depthTexture;
 
+        resize(canvas!);
+
         const canvasTexture = context.getCurrentTexture();
         const view = canvasTexture.createView();
 
@@ -347,12 +345,16 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             const objectScale : Matrix4 = props.objectProperties? Matrices4.scaling(props.objectProperties.scale) : Matrices4.identity();
             const objectRotation: Matrix4 = props.objectProperties? Matrices4.rotation(degreeToRadians(props.objectProperties.rotation.x), degreeToRadians(props.objectProperties.rotation.y), degreeToRadians(props.objectProperties.rotation.z)) : Matrices4.identity();
 
+            const cameraTranslation : Matrix4 = Matrices4.translation(props.camera.transform.translation);
+            const cameraScale : Matrix4 = Matrices4.scaling(props.camera.transform.scale);
+            const cameraRotation : Matrix4 = Matrices4.rotation(degreeToRadians(props.camera.transform.rotation.x), degreeToRadians(props.camera.transform.rotation.y), degreeToRadians(props.camera.transform.rotation.z));
 
             const shadersUniformsObjectTransformMatrix = objectTranslation.multMatrix(objectRotation).multMatrix(objectScale).toArrays();
-            const shadersUniformsNdcProjectionMatrix = props.cameraProjection==="orthographic"?
-             PerspectiveMatrices.orthogonalProjection(0, canvas.width,0, canvas.height, 0.1, 1000).toArrays() 
-             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(60), 0.1, 1000, canvas.width/canvas.height).toArrays();
-            
+            const shadersUniformsNdcProjectionMatrix = props.camera.projectionType==="orthographic"?
+             PerspectiveMatrices.orthogonalProjection(-canvas.width/2, canvas.width/2,-canvas.height/2, canvas.height/2, props.camera.near, props.camera.far).toArrays() 
+             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height).toArrays();
+            const shadersUniformsCameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion().toArrays();
+
             console.log(shadersUniformsNdcProjectionMatrix.toString());
             
             if (!depthTexture ||
@@ -390,13 +392,14 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             const encoder : GPUCommandEncoder = device!.createCommandEncoder({
                 label: 'basic encoder'
             });
-            resize(canvas!);
+            
 
             const shadersUniformsValuesResolution = [canvas!.width, canvas!.height];
             uniformView.set({
                 resolution: shadersUniformsValuesResolution,
                 objectTransform: shadersUniformsObjectTransformMatrix,
                 ndcProjection: shadersUniformsNdcProjectionMatrix,
+                viewMatrix: shadersUniformsCameraViewMatrix,
             });
             device!.queue.writeBuffer(uniformDataBuffer, 0, uniformView.arrayBuffer);
 
@@ -423,7 +426,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
 
   useEffect(()=>{
     render();
-  }, [props.objectProperties])
+  }, [props.objectProperties , props.camera])
 
   return (
     <div className="CanvasContainer">
