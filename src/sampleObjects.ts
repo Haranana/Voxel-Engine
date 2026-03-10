@@ -1,5 +1,7 @@
 import { RenderableObject } from "./classes/renderableObject";
 import { VoxelObject } from "./classes/voxelObject";
+import { Vector3 } from "./math/vector3.type";
+import { Vector4 } from "./math/vector4.type";
 
 export function getLetterFSampleObject(){
     const out = new RenderableObject();
@@ -88,7 +90,18 @@ export function getLetterFSampleObject(){
 
 export function getBasicSampleVoxelObject(){
     const out: VoxelObject = new VoxelObject();
-    out.setChunks(1,4);
+    out.setChunks(1,16);
+
+    for(let x = 0; x < 16; x++){
+        for(let y=0; y<16; y++){
+            for(let z=0; z<16; z++){
+                out.chunks[0]!.setVoxel(new Vector3(x,y,z), {
+                    color: new Vector4(160,230,140, 255)
+                })
+            }
+        }
+    }
+
     out.rebuildMesh();
     return out;
 }

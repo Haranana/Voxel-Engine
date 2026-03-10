@@ -14,7 +14,7 @@ export class Chunk{
     setChunkOffset(newChunkOffser: Vector3){
         this.chunkOffset = newChunkOffser;
     }
-    
+
     getVoxel(chunkPos: Vector3): Voxel | null{
         try{
             const chosenVoxel = this.voxels[chunkPos.x][chunkPos.y][chunkPos.z];
@@ -24,16 +24,21 @@ export class Chunk{
         }
     }
 
-    setSize(newSize: number){
-        const out : (Voxel | null)[][][] = [[[]]];
-        for(let x = 0; x < newSize; x++){
-            out.push([]);
-            for(let y = 0; y < newSize; y++){
-                out[x].push([]);
-                for(let z = 0; z < newSize; z++){
-                    out[x][y].push(null);
-                }
-            }
+    setVoxel(pos: Vector3, newVoxel: Voxel){
+        try{
+            this.voxels[pos.x][pos.y][pos.z] = newVoxel;
+            return true;
+        }catch(e: any){
+            return false;
         }
+    }
+
+    setSize(newSize: number) {
+        this.size = new Vector3(newSize, newSize, newSize);
+        this.voxels = Array.from({ length: newSize }, () =>
+            Array.from({ length: newSize }, () =>
+                Array.from({ length: newSize }, () => null)
+            )
+        );
     }
 }

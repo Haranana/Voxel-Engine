@@ -8,7 +8,8 @@ export class VoxelObject{
         chunks are sorted asc by x->y->-z
         so for example for A={x:0-16 y:0-16 z:(-32)-(-16)} B={x:0-16 y:0-16 z:(-32)-(-16)}
     */
-    chunks: Chunk[] = []
+    chunks: Chunk[] = [];
+    baseVoxelSize = 10;
 
     mesh: RenderableObject | null = null;
     chunksUpdated = false
@@ -30,25 +31,25 @@ export class VoxelObject{
 
     rebuildMesh(){
         const out: RenderableObject = new RenderableObject();
-
+        console.log("chunks: " , this.chunks.length, " | size: " , this.chunks[0]!.size)
         this.chunks.forEach(chunk =>{
             const chunkOffset = chunk.chunkOffset;
             for(let x = 0; x < chunk.size.x; x++){
                 for(let y = 0; y < chunk.size.y; y++){
-                    for(let z = 0; x < chunk.size.z; z++){
+                    for(let z = 0; z < chunk.size.z; z++){
                         if(chunk.getVoxel(new Vector3(x,y,z))){
                             const currentVoxelId : number = out.vertices.length/3 
 
 
-                            const voxelStart = new Vector3(x+chunkOffset.x,y+chunkOffset.y,z+chunkOffset.z);
-                            const A = voxelStart.addVector(new Vector3(0,0,1));
-                            const B = voxelStart.addVector(new Vector3(1,0,1));
-                            const C = voxelStart.addVector(new Vector3(1,1,1));
-                            const D = voxelStart.addVector(new Vector3(0,1,1));
+                            const voxelStart = new Vector3(this.baseVoxelSize*x+chunkOffset.x,this.baseVoxelSize*y+chunkOffset.y,this.baseVoxelSize*z+chunkOffset.z);
+                            const A = voxelStart.addVector(new Vector3(0,0,this.baseVoxelSize));
+                            const B = voxelStart.addVector(new Vector3(this.baseVoxelSize,0,this.baseVoxelSize));
+                            const C = voxelStart.addVector(new Vector3(this.baseVoxelSize,this.baseVoxelSize,this.baseVoxelSize));
+                            const D = voxelStart.addVector(new Vector3(0,this.baseVoxelSize,this.baseVoxelSize));
                             const E = voxelStart.addVector(new Vector3(0,0,0));
-                            const F = voxelStart.addVector(new Vector3(1,0,0));
-                            const G = voxelStart.addVector(new Vector3(1,1,0));
-                            const H = voxelStart.addVector(new Vector3(0,1,0));
+                            const F = voxelStart.addVector(new Vector3(this.baseVoxelSize,0,0));
+                            const G = voxelStart.addVector(new Vector3(this.baseVoxelSize,this.baseVoxelSize,0));
+                            const H = voxelStart.addVector(new Vector3(0,this.baseVoxelSize,0));
 
                             const front1 = [currentVoxelId, currentVoxelId+1, currentVoxelId+2];
                             const front2 = [currentVoxelId+2, currentVoxelId+3, currentVoxelId]
@@ -89,5 +90,7 @@ export class VoxelObject{
             }
 
         })
+
+        this.mesh = out;
     }
 }

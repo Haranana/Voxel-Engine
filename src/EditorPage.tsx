@@ -18,7 +18,7 @@ export default function EditorPage(){
         rotation: new Vector3(0,0,0), //in degrees
     });
 
-    const [selectedObject, setSelectedObject] = useState<VoxelObject | null>(getBasicSampleVoxelObject());
+    const [selectedObject, setSelectedObject] = useState<VoxelObject>(getBasicSampleVoxelObject());
 
     const [selectedCamera, setSelectedCamera] = useState<Camera>({
         fovY: 90,
@@ -38,11 +38,12 @@ export default function EditorPage(){
 
     const onSelectedCameraPropertiesChanged = (newCamera: Camera) =>{
         setSelectedCamera(newCamera)
+        console.log(selectedObject.mesh?.getVerticesData());
     }
 
     return <div className="EditorPage">
         <CameraPropertiesWidget camera={selectedCamera} onCameraChange={onSelectedCameraPropertiesChanged}></CameraPropertiesWidget>
-        <EditorCanvas objectProperties={selectedObjectProperties} camera={selectedCamera}  ></EditorCanvas>
+        <EditorCanvas objectProperties={selectedObjectProperties} camera={selectedCamera} selectedObject={selectedObject}  ></EditorCanvas>
         {selectedObjectProperties == null? "" : <RenderableObjectProperties 
         objectProperties={selectedObjectProperties} 
         onPropertiesChange={onSelectedObjectPropertiesChanged}>
