@@ -8,6 +8,8 @@ import { Vector3 } from './math/vector3.type';
 import type { Camera } from './classes/camera';
 import { degreeToRadians } from './math/utils';
 import CameraPropertiesWidget from './editorWidgets/CameraPropertiesWidget';
+import { VoxelObject } from './classes/voxelObject';
+import { getBasicSampleVoxelObject } from './sampleObjects';
 
 export default function EditorPage(){
     const [selectedObjectProperties, setSelectedObjectProperties] = useState<ObjectProperties | null >( {
@@ -15,6 +17,8 @@ export default function EditorPage(){
         scale: new Vector3(1,1,1),
         rotation: new Vector3(0,0,0), //in degrees
     });
+
+    const [selectedObject, setSelectedObject] = useState<VoxelObject | null>(getBasicSampleVoxelObject());
 
     const [selectedCamera, setSelectedCamera] = useState<Camera>({
         fovY: 90,
@@ -29,7 +33,7 @@ export default function EditorPage(){
     })
 
     const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
-        setSelectedObjectProperties(newProp);
+         setSelectedObjectProperties(newProp);
     }
 
     const onSelectedCameraPropertiesChanged = (newCamera: Camera) =>{
