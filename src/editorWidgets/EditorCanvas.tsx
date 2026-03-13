@@ -522,7 +522,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 label: 'basic encoder'
             });
             
-
             const shadersUniformsValuesResolution = [canvas!.width, canvas!.height];
             uniformView.set({
                 resolution: shadersUniformsValuesResolution,
