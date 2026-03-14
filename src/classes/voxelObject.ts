@@ -38,11 +38,8 @@ export class VoxelObject{
                 for(let y = 0; y < chunk.size.y; y++){
                     for(let z = 0; z < chunk.size.z; z++){
                         if(chunk.getVoxel(new Vector3(x,y,z))){
-                            const currentVoxelId : number = out.vertices.length/3 
+                            
                             const voxelStart = new Vector3(this.baseVoxelSize*x+chunkOffset.x,this.baseVoxelSize*y+chunkOffset.y,this.baseVoxelSize*z+chunkOffset.z);
-                            const verticesToAdd : Set<string> = new Set();
-                            const facesToAdd : Set<"front" | "back" | "top" | "bottom" | "left" | "right"> = new Set();
-
                             const voxelVertices : Map<string, Vector3> = new Map();
                             voxelVertices.set("A" , voxelStart.addVector(new Vector3(0,0,this.baseVoxelSize)));
                             voxelVertices.set( "B" , voxelStart.addVector(new Vector3(this.baseVoxelSize,0,this.baseVoxelSize)));
@@ -55,89 +52,67 @@ export class VoxelObject{
 
                             //front culling
                             if(!chunk.getVoxel(new Vector3(x,y,z+1))){
-                                verticesToAdd.add("A");
-                                verticesToAdd.add("B");
-                                verticesToAdd.add("C");
-                                verticesToAdd.add("D");
-                                facesToAdd.add("front");
+                                const currentVoxelId : number = out.vertices.length/3 
+                                out.vertices.push(...voxelVertices.get("A")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("B")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("C")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("D")!.toArray3());
+                                out.indices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //back culling
                             if(!chunk.getVoxel(new Vector3(x,y,z-1))){
-                                verticesToAdd.add("E");
-                                verticesToAdd.add("F");
-                                verticesToAdd.add("G");
-                                verticesToAdd.add("H");
-                                facesToAdd.add("back");
+                                const currentVoxelId : number = out.vertices.length/3 
+                                out.vertices.push(...voxelVertices.get("F")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("E")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("H")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("G")!.toArray3());
+                                out.indices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //top culling
                             if(!chunk.getVoxel(new Vector3(x,y-1,z))){
-                                verticesToAdd.add("A");
-                                verticesToAdd.add("B");
-                                verticesToAdd.add("E");
-                                verticesToAdd.add("F");
-                                facesToAdd.add("top");
+                                const currentVoxelId : number = out.vertices.length/3 
+                                out.vertices.push(...voxelVertices.get("E")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("F")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("B")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("A")!.toArray3());
+                                out.indices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //bottom culling
                             if(!chunk.getVoxel(new Vector3(x,y+1,z))){
-                                verticesToAdd.add("C");
-                                verticesToAdd.add("D");
-                                verticesToAdd.add("G");
-                                verticesToAdd.add("H");
-                                facesToAdd.add("bottom");
+                                const currentVoxelId : number = out.vertices.length/3 
+                                out.vertices.push(...voxelVertices.get("D")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("C")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("G")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("H")!.toArray3());
+                                out.indices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //left culling
                             if(!chunk.getVoxel(new Vector3(x-1,y,z))){
-                                verticesToAdd.add("A");
-                                verticesToAdd.add("D");
-                                verticesToAdd.add("E");
-                                verticesToAdd.add("H");
-                                facesToAdd.add("left");
+                                const currentVoxelId : number = out.vertices.length/3 
+                                out.vertices.push(...voxelVertices.get("E")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("A")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("D")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("H")!.toArray3());
+                                out.indices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //right culling
                             if(!chunk.getVoxel(new Vector3(x+1,y,z))){
-                                verticesToAdd.add("B");
-                                verticesToAdd.add("C");
-                                verticesToAdd.add("F");
-                                verticesToAdd.add("G");
-                                facesToAdd.add("right");
+                                const currentVoxelId : number = out.vertices.length/3 
+                                out.vertices.push(...voxelVertices.get("B")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("F")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("G")!.toArray3());
+                                out.vertices.push(...voxelVertices.get("C")!.toArray3());
+                                out.indices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
+                            
 
-                            const verticesAndIndexOffset : Map<string, number>= new Map()
-                            let indexOffset = currentVoxelId;
-                            verticesToAdd.forEach(v => {
-                                verticesAndIndexOffset.set(v, indexOffset)
-                                indexOffset++;
-                                out.colors.push(230,230,250);
-                                out.vertices.push(...voxelVertices.get(v)!.toArray3());
-                            });
-
-                            facesToAdd.forEach(face=>{
-                                if(face=="front"){
-                                    const front1 : number[] = [verticesAndIndexOffset.get("A")!, verticesAndIndexOffset.get("B")!, verticesAndIndexOffset.get("C")!];
-                                    const front2 = [verticesAndIndexOffset.get("C")!, verticesAndIndexOffset.get("D")!, verticesAndIndexOffset.get("A")!];
-                                    out.indices.push(...front1, ...front2);
-                                }else if(face=="back"){
-                                    const back1 = [verticesAndIndexOffset.get("F")!, verticesAndIndexOffset.get("E")!, verticesAndIndexOffset.get("H")!];
-                                    const back2 = [verticesAndIndexOffset.get("H")!, verticesAndIndexOffset.get("G")!, verticesAndIndexOffset.get("F")!];
-                                    out.indices.push(...back1, ...back2);
-                                }else if(face=="top"){
-                                    const top1 = [verticesAndIndexOffset.get("E")!, verticesAndIndexOffset.get("F")!, verticesAndIndexOffset.get("B")!];
-                                    const top2 = [verticesAndIndexOffset.get("B")!, verticesAndIndexOffset.get("A")!, verticesAndIndexOffset.get("E")!];
-                                    out.indices.push(...top1, ...top2);
-                                }else if(face=="bottom"){
-                                    const bottom1 = [verticesAndIndexOffset.get("D")!, verticesAndIndexOffset.get("C")!, verticesAndIndexOffset.get("G")!];
-                                    const bottom2 = [verticesAndIndexOffset.get("G")!, verticesAndIndexOffset.get("H")!, verticesAndIndexOffset.get("D")!];
-                                    out.indices.push(...bottom1, ...bottom2);
-                                }else if(face=="left"){
-                                    const left1 = [verticesAndIndexOffset.get("E")!, verticesAndIndexOffset.get("A")!, verticesAndIndexOffset.get("D")!];
-                                    const left2 = [verticesAndIndexOffset.get("D")!, verticesAndIndexOffset.get("H")!, verticesAndIndexOffset.get("E")!];
-                                    out.indices.push(...left1, ...left2);
-                                }else if(face=="right"){
-                                    const right1 = [verticesAndIndexOffset.get("B")!, verticesAndIndexOffset.get("F")!, verticesAndIndexOffset.get("G")!];
-                                    const right2 = [verticesAndIndexOffset.get("G")!, verticesAndIndexOffset.get("C")!, verticesAndIndexOffset.get("B")!];
-                                    out.indices.push(...right1, ...right2);
-                                }
-                            });//[A0 - B1 - C2- D3 - E4 -F5 -G6- H7]
+                           
                         }
                     }
                 }
