@@ -3,10 +3,9 @@ import { useState } from 'react';
 import '../src/Editor.css'
 import EditorCanvas from './editorWidgets/EditorCanvas'
 import RenderableObjectProperties from './editorWidgets/RenderableObjectProperties'
-import type { ObjectProperties } from './RenderableObjectTypes';
+import { type RenderMode, type ObjectProperties } from './RenderableObjectTypes';
 import { Vector3 } from './math/vector3.type';
 import type { Camera } from './classes/camera';
-import { degreeToRadians } from './math/utils';
 import CameraPropertiesWidget from './editorWidgets/CameraPropertiesWidget';
 import { VoxelObject } from './classes/voxelObject';
 import { getBasicSampleVoxelObject } from './sampleObjects';
@@ -19,6 +18,7 @@ export default function EditorPage(){
     });
 
     const [selectedObject, setSelectedObject] = useState<VoxelObject>(getBasicSampleVoxelObject());
+    const [selectedRenderMode, setSelectedRenderMode] = useState<RenderMode>("TriangleWireframe");
 
     const [selectedCamera, setSelectedCamera] = useState<Camera>({
         fovY: 90,
@@ -38,12 +38,11 @@ export default function EditorPage(){
 
     const onSelectedCameraPropertiesChanged = (newCamera: Camera) =>{
         setSelectedCamera(newCamera)
-        console.log(selectedObject.mesh?.getVerticesData());
     }
 
     return <div className="EditorPage">
         <CameraPropertiesWidget camera={selectedCamera} onCameraChange={onSelectedCameraPropertiesChanged}></CameraPropertiesWidget>
-        <EditorCanvas objectProperties={selectedObjectProperties} camera={selectedCamera} selectedObject={selectedObject}  ></EditorCanvas>
+        <EditorCanvas objectProperties={selectedObjectProperties} camera={selectedCamera} selectedObject={selectedObject} renderMode={selectedRenderMode}  ></EditorCanvas>
         {selectedObjectProperties == null? "" : <RenderableObjectProperties 
         objectProperties={selectedObjectProperties} 
         onPropertiesChange={onSelectedObjectPropertiesChanged}>

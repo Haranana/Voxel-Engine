@@ -5,7 +5,7 @@ import { Vector4 } from "./math/vector4.type";
 
 export function getLetterFSampleObject(){
     const out = new RenderableObject();
-    out.indices = [
+    out.trianglesIndices = [
         0,  1,  2,    2,  1,  3,  // left column
         4,  5,  6,    6,  5,  7,  // top run
         8,  9, 10,   10,  9, 11,  // middle run

@@ -6,3 +6,5 @@ export type ObjectProperties = {
     scale: Vector3,
     rotation: Vector3,
 }
+
+export type RenderMode = "Raster" | "TriangleWireframe" | "QuadWireframe"

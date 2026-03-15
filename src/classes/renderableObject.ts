@@ -8,7 +8,9 @@ export class RenderableObject{
         scale: new Vector3(1,1,1),
         rotation: new Vector3(0,0,0), //in degrees
     };
-    indices: number[] = [];
+    trianglesIndices: number[] = [];
+    linesIndices: number[] = [];
+    quadsIndices: number[] = [];
     vertices: number[] = [];
     colors: number[] = [];
 
@@ -21,17 +23,16 @@ export class RenderableObject{
     //1 byte for color b
     //1 byte for color a
     getVerticesData(){
-
-        const numVertices = this.indices.length;
+        const numVertices : number = this.vertices.length/3;
         const vertexData = new Float32Array(numVertices * 4); 
         const colorData = new Uint8Array(vertexData.buffer);
 
-        for(let i = 0; i<this.indices.length; i++){
-            const vertexPositionsStart = this.indices[i]*3;
+        for(let i = 0; i<numVertices; i++){
+            const vertexPositionsStart = i*3;
             const vertexPositions = this.vertices.slice(vertexPositionsStart , vertexPositionsStart+3);
             vertexData.set(vertexPositions, i*4);
             
-            const colorForVertexStart = this.indices[i]*4;
+            const colorForVertexStart = i*4;
             const color = this.colors.slice(colorForVertexStart, colorForVertexStart + 3);
             colorData.set(color, i * 16 + 12);  
             colorData[i * 16 + 15] = 255;       
@@ -39,6 +40,9 @@ export class RenderableObject{
         
         return {
             vertexData,
+            linesIndices: new Uint32Array(this.linesIndices),
+            trianglesIndices: new Uint32Array(this.trianglesIndices),
+            quadsIndices: new Uint32Array(this.quadsIndices),
             numVertices: numVertices,
         };
     }
