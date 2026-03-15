@@ -6,6 +6,7 @@ import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
 import type { VoxelObject } from "../classes/voxelObject";
+import { additionalZShader, baseShader } from "../shaders/baseRenderableObjectShaders";
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null;
@@ -18,13 +19,18 @@ type RenderData = {
     context : GPUCanvasContext | null,
     device : GPUDevice | null,
     pipeline : GPURenderPipeline | null,
-    uniformDataBuffer : GPUBuffer | null,
-    bindGroup : GPUBindGroup | null,
-    uniformView: StructuredView | null,
+    overlayPipeline : GPURenderPipeline | null,
+    uniformDataBuffer : GPUBuffer[] | null,
+    bindGroup : GPUBindGroup[] | null,
+    uniformView: StructuredView[] | null,
     vertexBuffer: GPUBuffer | null,
     verticesAmount: number | null,
-    indexBuffer: GPUBuffer | null,
-    indicesAmount: number | null,
+    trianglesIndexBuffer: GPUBuffer | null,
+    linesIndexBuffer: GPUBuffer | null,
+    quadsIndexBuffer: GPUBuffer | null,
+    triangleIndicesAmount: number | null,
+    lineIndicesAmount: number | null,
+    quadIndicesAmount: number | null,
     depthTexture: GPUTexture | null,
 };
 
@@ -35,19 +41,24 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         context : null,
         device : null,
         pipeline : null,
+        overlayPipeline: null,
         uniformDataBuffer : null,
         bindGroup : null,
         uniformView: null,
         vertexBuffer: null,
         verticesAmount: null,
-        indexBuffer: null,
-        indicesAmount: null,
+        trianglesIndexBuffer:  null,
+        linesIndexBuffer:  null,
+        quadsIndexBuffer: null,
+        triangleIndicesAmount:  null,
+        lineIndicesAmount: null,
+        quadIndicesAmount:  null,
         depthTexture: null,
     });
 
     const canRender = () => {
         const r = renderDataRef.current;
-        return r.context && r.device && r.pipeline && r.uniformDataBuffer && r.bindGroup && r.uniformView  && r.vertexBuffer && r.verticesAmount && r.indexBuffer && r.indicesAmount; 
+        return r.context && r.device && r.pipeline && r.uniformDataBuffer && r.bindGroup && r.uniformView  && r.vertexBuffer && r.verticesAmount ; 
     }
 
     const resize = (canvas: HTMLCanvasElement) => {
@@ -84,59 +95,37 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         });
         resize(canvasRef.current!);
         
-        const shadersCode = `
-            struct UniformDataStruct{
-                resolution: vec2f,
-                _pad: vec2f,
-                objectTransform: mat4x4f,
-                ndcProjection: mat4x4f,    
-                viewMatrix: mat4x4f,
-                baseColor: vec4f,
-            };
-
-            struct Vertex{
-                @location(0) position: vec3f,
-                @location(1) color: vec4f,
-            };
-
-            struct VertexShaderOutput{
-                @builtin(position) position: vec4f,
-                @location(0) color: vec4f,
-            }
-
-            @group(0) @binding(0) var<uniform> uniformData: UniformDataStruct;
-
-            @vertex fn vertexShader(
-                v: Vertex) -> VertexShaderOutput {
-                
-                var out: VertexShaderOutput;
-                let vertPixelPosition = uniformData.objectTransform * vec4f(v.position, 1.0);
-
-                let vertNdcPosition = (uniformData.ndcProjection * uniformData.viewMatrix * vertPixelPosition).xyzw;
-                out.position = vec4f(vertNdcPosition);
-                out.color = uniformData.baseColor;
-
-                return out;
-            }
-        
-            @fragment fn fragmentShader(vnOut: VertexShaderOutput) -> @location(0) vec4f {
-                return vnOut.color;
-            }
-        `
-
-        const baseShaderModule = device.createShaderModule({
-            label: 'F shape shaders',
-            code: shadersCode,
+        const selectedObjectShaderCode = baseShader();
+        const selectedObjectShaderModule = device.createShaderModule({
+            label: 'selected object shader module',
+            code: selectedObjectShaderCode,
         });
 
-        const selectedTopology = props.renderMode == "Raster"? "triangle-list" : "line-list";
+        const overlayShaderCode = additionalZShader();
+        const overlayShaderModule = device.createShaderModule({
+            label: "overlay shader module",
+            code: overlayShaderCode,
+        })
+
+        const bindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            {
+                binding: 0,
+                visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                buffer: { type: "uniform" },
+            },
+        ],
+        });
+        const pipelineLayout = device.createPipelineLayout({
+            bindGroupLayouts: [bindGroupLayout],
+        });
 
         const pipeline = device.createRenderPipeline({
-            label: '2D letter F',
-            layout: 'auto',
+            label: 'Selected object mesh pipeline',
+            layout: pipelineLayout,
             vertex: {
                 entryPoint: `vertexShader`,
-                module: baseShaderModule,
+                module: selectedObjectShaderModule,
                 buffers:[
                     {
                         arrayStride: 4*4,
@@ -157,26 +146,73 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             },
             fragment: {
                 entryPoint: `fragmentShader`,
-                module: baseShaderModule,
+                module: selectedObjectShaderModule,
                 targets: [{format: presentationFormat}],
             },
             primitive: {
-                topology: selectedTopology,
+                topology: "triangle-list",
                 cullMode: 'back',
+                frontFace: "cw",
             },
             depthStencil: {
                 depthWriteEnabled: true,
-                depthCompare: 'less',
+                depthCompare: 'less-equal',
                 format: 'depth24plus',
             },
         });
 
-        const shaderDef = makeShaderDataDefinitions(shadersCode);
-        const shadersUniformsView = makeStructuredView(shaderDef.uniforms.uniformData);
+        const overlayPipeline = device.createRenderPipeline({
+            label: 'Selected object mesh overlay',
+            layout: pipelineLayout,
+            vertex: {
+                entryPoint: `vertexShader`,
+                module: overlayShaderModule,
+                buffers:[
+                    {
+                        arrayStride: 4*4,
+                        attributes:[
+                            {
+                                shaderLocation: 0,
+                                offset: 0,
+                                format: 'float32x3',
+                            },
+                            {
+                                shaderLocation: 1,
+                                offset: 12,
+                                format: 'unorm8x4',
+                            }
+                        ]
+                    }
+                ]
+            },
+            fragment: {
+                entryPoint: `fragmentShader`,
+                module: overlayShaderModule,
+                targets: [{format: presentationFormat}],
+            },
+            primitive: {
+                topology: "line-list",
+                cullMode: 'none',
+                frontFace: "cw",
+            },
+            depthStencil: {
+                depthWriteEnabled: false,
+                depthCompare: 'less-equal',
+                format: 'depth24plus',
+            },
+        });
 
-        const uniformDataBuffer = device.createBuffer({
+        const selectedObjectUniformDataView = makeStructuredView(makeShaderDataDefinitions(selectedObjectShaderCode).uniforms.uniformData);
+        const selectedObjectUniformBuffer = device.createBuffer({
             label: 'uniform buffer',
-            size: shadersUniformsView.arrayBuffer.byteLength,
+            size: selectedObjectUniformDataView.arrayBuffer.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+
+        const overlayUniformDataView = makeStructuredView(makeShaderDataDefinitions(additionalZShader()).uniforms.uniformData);
+        const overlayUniformViewBuffer = device.createBuffer({
+            label: 'uniform buffer',
+            size: overlayUniformDataView.arrayBuffer.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
@@ -190,34 +226,64 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         });
         device.queue.writeBuffer(vertexDataBuffer , 0 , vertexData);
 
-        const indexDataValues = props.renderMode == "Raster"? trianglesIndices : props.renderMode == "TriangleWireframe"? linesIndices : quadsIndices;
-        const indexDataBuffer = device.createBuffer({
+        const trianglesIndexBuffer = device.createBuffer({
             label: 'index data buffer',
-            size: indexDataValues.byteLength,
+            size: trianglesIndices.byteLength,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
         });
-        device.queue.writeBuffer(indexDataBuffer, 0 , indexDataValues);
+        device.queue.writeBuffer(trianglesIndexBuffer, 0 , trianglesIndices);
 
-        const bindGroup = device.createBindGroup({
+        const linesIndexBuffer = device.createBuffer({
+            label: 'index data buffer',
+            size: linesIndices.byteLength,
+            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(linesIndexBuffer, 0 , linesIndices);
+
+        const quadsIndexBuffer = device.createBuffer({
+            label: 'index data buffer',
+            size: quadsIndices.byteLength,
+            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(quadsIndexBuffer, 0 , quadsIndices);
+        
+
+
+        const bindGroupSelectedObject = device.createBindGroup({
             label: 'bind group for uniform data',
-            layout: pipeline.getBindGroupLayout(0),
+            layout: bindGroupLayout,
             entries:[{
                 binding: 0,
-                resource: {buffer: uniformDataBuffer},
+                resource: {buffer: selectedObjectUniformBuffer},
             }]
         })
 
-        const indicesAmount = indexDataValues.length;
+        const bindGroupOverlay = device.createBindGroup({
+            label: 'bind group for uniform data',
+            layout: bindGroupLayout,
+            entries:[{
+                binding: 0,
+                resource: {buffer: overlayUniformViewBuffer},
+            }]
+        })
+
         renderDataRef.current.context = context;
         renderDataRef.current.device = device;
         renderDataRef.current.pipeline = pipeline;
-        renderDataRef.current.uniformDataBuffer = uniformDataBuffer;
-        renderDataRef.current.bindGroup = bindGroup;
-        renderDataRef.current.uniformView = shadersUniformsView;
+        renderDataRef.current.overlayPipeline = overlayPipeline;
+        renderDataRef.current.uniformDataBuffer = [selectedObjectUniformBuffer, overlayUniformViewBuffer]
+        renderDataRef.current.bindGroup = [bindGroupSelectedObject, bindGroupOverlay];
+        renderDataRef.current.uniformView = [selectedObjectUniformDataView, overlayUniformDataView];
         renderDataRef.current.vertexBuffer = vertexDataBuffer;
         renderDataRef.current.verticesAmount = numVertices;
-        renderDataRef.current.indexBuffer = indexDataBuffer;
-        renderDataRef.current.indicesAmount = indicesAmount;
+
+        renderDataRef.current.triangleIndicesAmount = trianglesIndices.length;
+        renderDataRef.current.lineIndicesAmount = linesIndices.length;
+        renderDataRef.current.quadIndicesAmount = quadsIndices.length;
+        renderDataRef.current.trianglesIndexBuffer = trianglesIndexBuffer;
+        renderDataRef.current.linesIndexBuffer = linesIndexBuffer;
+        renderDataRef.current.quadsIndexBuffer = quadsIndexBuffer;
+
         
         if(canRender()) renderVoxelObject();
     }
@@ -232,13 +298,20 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const context = r.context!;
         const device = r.device!;
         const pipeline = r.pipeline!;
+        const overlayPipeline = r.overlayPipeline!;
         const uniformDataBuffer = r.uniformDataBuffer!;
         const bindGroup = r.bindGroup!;
         const uniformView = r.uniformView!;
         const vertexBuffer = r.vertexBuffer!;
         const verticesAmount = r.verticesAmount!;
-        const indexBuffer = r.indexBuffer!;
-        const indicesAmount = r.indicesAmount!;
+        
+        const trianglesIndicesAmount = renderDataRef.current.triangleIndicesAmount! ;
+        const linesIndicesAmount = renderDataRef.current.lineIndicesAmount!;
+        const quadsIndicesAmount = renderDataRef.current.quadIndicesAmount!;
+        const trianglesIndexBuffer = renderDataRef.current.trianglesIndexBuffer!;
+        const linesIndexBuffer = renderDataRef.current.linesIndexBuffer!;
+        const quadsIndexBuffer = renderDataRef.current.quadsIndexBuffer!;
+
         let depthTexture = r.depthTexture;
 
         resize(canvas!);
@@ -298,21 +371,39 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             
 
             const shadersUniformsValuesResolution = [canvas!.width, canvas!.height];
-            uniformView.set({
+            uniformView[0].set({
                 resolution: shadersUniformsValuesResolution,
                 objectTransform: shadersUniformsObjectTransformMatrix,
                 ndcProjection: shadersUniformsNdcProjectionMatrix,
                 viewMatrix: shadersUniformsCameraViewMatrix,
                 baseColor: [0.5,0.3,0.62,1],
             });
-            device!.queue.writeBuffer(uniformDataBuffer, 0, uniformView.arrayBuffer);
+            device!.queue.writeBuffer(uniformDataBuffer[0], 0, uniformView[0].arrayBuffer);
 
+            uniformView[1].set({
+                resolution: shadersUniformsValuesResolution,
+                objectTransform: shadersUniformsObjectTransformMatrix,
+                ndcProjection: shadersUniformsNdcProjectionMatrix,
+                viewMatrix: shadersUniformsCameraViewMatrix,
+                baseColor: [0.7,0.7,0.7,1],
+            });
+            device!.queue.writeBuffer(uniformDataBuffer[1], 0, uniformView[1].arrayBuffer);
             const pass : GPURenderPassEncoder = encoder.beginRenderPass(renderPassDescriptor);
+
             pass.setPipeline(pipeline);
             pass.setVertexBuffer(0 , vertexBuffer);
-            pass.setIndexBuffer(indexBuffer, "uint32");
-            pass.setBindGroup(0, bindGroup);
-            pass.drawIndexed(indicesAmount);
+            pass.setIndexBuffer(trianglesIndexBuffer, "uint32");
+            pass.setBindGroup(0, bindGroup[0]);
+            pass.drawIndexed(trianglesIndicesAmount);
+
+            /*
+            pass.setPipeline(overlayPipeline);
+            pass.setVertexBuffer(0 , vertexBuffer);
+            pass.setIndexBuffer(quadsIndexBuffer, "uint32");
+            pass.setBindGroup(0, bindGroup[1]);
+            pass.drawIndexed(quadsIndicesAmount);
+            */
+           
             pass.end();
 
             const commandBuffer = encoder.finish();

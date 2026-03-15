@@ -9,7 +9,7 @@ export class VoxelObject{
         so for example for A={x:0-16 y:0-16 z:(-32)-(-16)} B={x:0-16 y:0-16 z:(-32)-(-16)}
     */
     chunks: Chunk[] = [];
-    baseVoxelSize = 10;
+    baseVoxelSize = 50;
 
     mesh: RenderableObject | null = null;
     chunksUpdated = false
