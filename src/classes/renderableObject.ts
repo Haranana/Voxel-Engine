@@ -32,7 +32,7 @@ export class RenderableObject{
             const vertexPositions = this.vertices.slice(vertexPositionsStart , vertexPositionsStart+3);
             vertexData.set(vertexPositions, i*4);
             
-            const colorForVertexStart = i*4;
+            const colorForVertexStart = i*3;
             const color = this.colors.slice(colorForVertexStart, colorForVertexStart + 3);
             colorData.set(color, i * 16 + 12);  
             colorData[i * 16 + 15] = 255;       

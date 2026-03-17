@@ -30,6 +30,7 @@ export class VoxelObject{
     }
 
     rebuildMesh(){
+
         const out: RenderableObject = new RenderableObject();
         console.log("chunks: " , this.chunks.length, " | size: " , this.chunks[0]!.size)
         this.chunks.forEach(chunk =>{
@@ -93,8 +94,8 @@ export class VoxelObject{
                                 out.vertices.push(...voxelVertices.get("C")!.toArray3());
                                 out.vertices.push(...voxelVertices.get("G")!.toArray3());
                                 out.vertices.push(...voxelVertices.get("H")!.toArray3());
-                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
+                                out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
                                 out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
@@ -105,8 +106,8 @@ export class VoxelObject{
                                 out.vertices.push(...voxelVertices.get("A")!.toArray3());
                                 out.vertices.push(...voxelVertices.get("D")!.toArray3());
                                 out.vertices.push(...voxelVertices.get("H")!.toArray3());
-                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
+                                out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
                                 out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
@@ -117,8 +118,8 @@ export class VoxelObject{
                                 out.vertices.push(...voxelVertices.get("F")!.toArray3());
                                 out.vertices.push(...voxelVertices.get("G")!.toArray3());
                                 out.vertices.push(...voxelVertices.get("C")!.toArray3());
-                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
+                                out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
                                 out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }                                                       
@@ -129,7 +130,7 @@ export class VoxelObject{
 
         })
 
-        console.log(`New mesh data: | lines: ${out.linesIndices.length/2} | triangles: ${out.trianglesIndices.length/3} | quads: ${out.quadsIndices.length/4} | vertices: ${out.vertices.length/3}`);
+        console.log(`New mesh data: | lines: ${out.linesIndices.length/2} | triangles: ${out.trianglesIndices.length/3} | quads: ${out.quadsIndices.length/8} | vertices: ${out.vertices.length/3}`);
         this.mesh = out;
     }
 }

@@ -29,7 +29,7 @@ export function baseShader(){
 
                 let vertNdcPosition = (uniformData.ndcProjection * uniformData.viewMatrix * vertPixelPosition).xyzw;
                 out.position = vec4f(vertNdcPosition);
-                out.color = uniformData.baseColor;
+                out.color = v.color;
 
                 return out;
             }
@@ -40,7 +40,7 @@ export function baseShader(){
     `
 }
 
-export function additionalZShader(bias: number = 1e-2){
+export function additionalZShader(bias: number = 0.005){
         return `
     struct UniformDataStruct{
                 resolution: vec2f,

@@ -152,11 +152,10 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             primitive: {
                 topology: "triangle-list",
                 cullMode: 'back',
-                frontFace: "cw",
             },
             depthStencil: {
                 depthWriteEnabled: true,
-                depthCompare: 'less-equal',
+                depthCompare: 'less',
                 format: 'depth24plus',
             },
         });
@@ -396,13 +395,13 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             pass.setBindGroup(0, bindGroup[0]);
             pass.drawIndexed(trianglesIndicesAmount);
 
-            /*
+            
             pass.setPipeline(overlayPipeline);
             pass.setVertexBuffer(0 , vertexBuffer);
             pass.setIndexBuffer(quadsIndexBuffer, "uint32");
             pass.setBindGroup(0, bindGroup[1]);
             pass.drawIndexed(quadsIndicesAmount);
-            */
+            
            
             pass.end();
 
