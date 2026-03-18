@@ -1,5 +1,13 @@
+import type { Vector2 } from "../math/vector2.type";
 import { Vector3 } from "../math/vector3.type";
+import type { Vector4 } from "../math/vector4.type";
 import type { ObjectProperties } from "../RenderableObjectTypes";
+
+export type Vertex ={
+    position: Vector3,
+    quadUV: Vector2,
+    color: Vector4,
+}
 
 export class RenderableObject{
     
@@ -11,10 +19,9 @@ export class RenderableObject{
     trianglesIndices: number[] = [];
     linesIndices: number[] = [];
     quadsIndices: number[] = [];
-    vertices: number[] = [];
-    colors: number[] = [];
+    vertices: Vertex[] = [];
 
-    //returns data of all verticex in 32 bit array:
+    //returns data of all verticex in 32 bit (4 byte) array:
     //4 bytes for x
     //4 bytes for y
     //4 bytes for z
@@ -22,20 +29,22 @@ export class RenderableObject{
     //1 byte for color g
     //1 byte for color b
     //1 byte for color a
+    //4 bytes for quad u
+    //4 bytes for quad v
     getVerticesData(){
-        const numVertices : number = this.vertices.length/3;
-        const vertexData = new Float32Array(numVertices * 4); 
+        const vertexDataElements : number = 6;
+
+        const numVertices : number = this.vertices.length;
+        const vertexData = new Float32Array(numVertices * vertexDataElements); 
         const colorData = new Uint8Array(vertexData.buffer);
+        
 
         for(let i = 0; i<numVertices; i++){
-            const vertexPositionsStart = i*3;
-            const vertexPositions = this.vertices.slice(vertexPositionsStart , vertexPositionsStart+3);
-            vertexData.set(vertexPositions, i*4);
-            
-            const colorForVertexStart = i*3;
-            const color = this.colors.slice(colorForVertexStart, colorForVertexStart + 3);
-            colorData.set(color, i * 16 + 12);  
-            colorData[i * 16 + 15] = 255;       
+            vertexData.set([this.vertices[i].position.x , this.vertices[i].position.y, this.vertices[i].position.z]  , i*vertexDataElements);
+            vertexData.set([this.vertices[i].quadUV.x , this.vertices[i].quadUV.y], i * vertexDataElements + 4);
+            const color = this.vertices[i].color;
+            colorData.set([color.x, color.y, color.z], i * vertexDataElements * 4 + 12);  
+            colorData[i * vertexDataElements * 4 + 15] = 255;       
         }
         
         return {

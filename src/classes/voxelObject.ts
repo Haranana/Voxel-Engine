@@ -1,6 +1,8 @@
+import { Vector2 } from "../math/vector2.type";
 import { Vector3 } from "../math/vector3.type";
+import { Vector4 } from "../math/vector4.type";
 import { Chunk } from "./chunk";
-import { RenderableObject } from "./renderableObject";
+import { RenderableObject, type Vertex } from "./renderableObject";
 
 export class VoxelObject{
     
@@ -53,75 +55,165 @@ export class VoxelObject{
 
                             //front culling
                             if(!chunk.getVoxel(new Vector3(x,y,z+1))){
-                                const currentVoxelId : number = out.vertices.length/3 
-                                out.vertices.push(...voxelVertices.get("A")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("B")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("C")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("D")!.toArray3());
+                                const currentVoxelId : number = out.vertices.length 
+                                out.vertices.push({
+                                    position: voxelVertices.get("A")!,
+                                    quadUV: new Vector2(0,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("B")!,
+                                    quadUV: new Vector2(1,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("C")!,
+                                    quadUV: new Vector2(1,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("D")!,
+                                    quadUV: new Vector2(0,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
                                 out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                 out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //back culling
                             if(!chunk.getVoxel(new Vector3(x,y,z-1))){
-                                const currentVoxelId : number = out.vertices.length/3 
-                                out.vertices.push(...voxelVertices.get("F")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("E")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("H")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("G")!.toArray3());
+                                const currentVoxelId : number = out.vertices.length
+                                                                out.vertices.push({
+                                    position: voxelVertices.get("F")!,
+                                    quadUV: new Vector2(0,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("E")!,
+                                    quadUV: new Vector2(1,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("H")!,
+                                    quadUV: new Vector2(1,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("G")!,
+                                    quadUV: new Vector2(0,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
                                 out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //top culling
                             if(!chunk.getVoxel(new Vector3(x,y-1,z))){
-                                const currentVoxelId : number = out.vertices.length/3 
-                                out.vertices.push(...voxelVertices.get("E")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("F")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("B")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("A")!.toArray3());
+                                const currentVoxelId : number = out.vertices.length
+                                out.vertices.push({
+                                    position: voxelVertices.get("E")!,
+                                    quadUV: new Vector2(0,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("F")!,
+                                    quadUV: new Vector2(1,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("B")!,
+                                    quadUV: new Vector2(1,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("A")!,
+                                    quadUV: new Vector2(0,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
                                 out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                                                out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //bottom culling
                             if(!chunk.getVoxel(new Vector3(x,y+1,z))){
-                                const currentVoxelId : number = out.vertices.length/3 
-                                out.vertices.push(...voxelVertices.get("D")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("C")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("G")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("H")!.toArray3());
+                                const currentVoxelId : number = out.vertices.length
+                                out.vertices.push({
+                                    position: voxelVertices.get("D")!,
+                                    quadUV: new Vector2(0,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("C")!,
+                                    quadUV: new Vector2(1,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("G")!,
+                                    quadUV: new Vector2(1,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("H")!,
+                                    quadUV: new Vector2(0,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
                                 out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                 out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //left culling
                             if(!chunk.getVoxel(new Vector3(x-1,y,z))){
-                                const currentVoxelId : number = out.vertices.length/3 
-                                out.vertices.push(...voxelVertices.get("E")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("A")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("D")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("H")!.toArray3());
+                                const currentVoxelId : number = out.vertices.length
+                                out.vertices.push({
+                                    position: voxelVertices.get("E")!,
+                                    quadUV: new Vector2(0,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("A")!,
+                                    quadUV: new Vector2(1,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("D")!,
+                                    quadUV: new Vector2(1,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("H")!,
+                                    quadUV: new Vector2(0,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
                                 out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                 out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }
                             //right culling
                             if(!chunk.getVoxel(new Vector3(x+1,y,z))){
-                                const currentVoxelId : number = out.vertices.length/3 
-                                out.vertices.push(...voxelVertices.get("B")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("F")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("G")!.toArray3());
-                                out.vertices.push(...voxelVertices.get("C")!.toArray3());
+                                const currentVoxelId : number = out.vertices.length
+                                out.vertices.push({
+                                    position: voxelVertices.get("B")!,
+                                    quadUV: new Vector2(0,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("F")!,
+                                    quadUV: new Vector2(1,0), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("G")!,
+                                    quadUV: new Vector2(1,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
+                                out.vertices.push({
+                                    position: voxelVertices.get("C")!,
+                                    quadUV: new Vector2(0,1), 
+                                    color: new Vector4(200,70,200,255),
+                                })
                                 out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                 out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
                                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-                                out.colors.push(200,70,200,200,70,200,200,70,200,200,70,200);
                             }                                                       
                         }
                     }
