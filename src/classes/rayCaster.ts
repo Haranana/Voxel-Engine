@@ -1,0 +1,145 @@
+
+import type { Matrix4 } from "../math/matrix4.type";
+import type { Vector2 } from "../math/vector2.type";
+import { Vector3 } from "../math/vector3.type";
+import { Vector4 } from "../math/vector4.type";
+import type { Camera } from "./camera";
+import type { VoxelObject } from "./voxelObject";
+
+class Ray{
+    direction: Vector3;
+    origin: Vector3;
+    constructor(origin: Vector3, direction: Vector3){
+        this.origin = origin;
+        this.direction = direction;
+    }
+
+    get(t: number) : Vector3{
+        return this.origin.addVector(this.direction.multByScalar(t));
+    }
+}
+
+//casts ray from given coordinates (in Model space) onto given voxel object
+//returns Vector3 of first non-empty voxel ids or null if none is in path of the ray 
+export function getVoxelFromObject(camera: Camera, 
+                            pointSs: Vector2, 
+                            obj: VoxelObject,
+                            canvasSize: Vector2,
+                            objectTransformMatrix: Matrix4,  
+                            ndcProjectionMatrix: Matrix4, 
+                            cameraViewMatrix: Matrix4)
+    : Vector3 | null{
+    
+    const mvpInversion = ndcProjectionMatrix.multMatrix(cameraViewMatrix).multMatrix(objectTransformMatrix).getInversion();
+
+    const cameraPositionMs = new Vector3(
+    ...objectTransformMatrix.getInversion().multVector(
+        new Vector4(...camera.transform.translation.toArray4())
+    ).toArray3());
+
+    const xNdc = (2 * pointSs.x) / canvasSize.x - 1;
+    const yNdc = 1 - (2 * pointSs.y) / canvasSize.y;
+
+    const pointNearMs : Vector4 = mvpInversion.multVector(new Vector4(xNdc, yNdc, 0, 1));
+    const pointFarMs: Vector4 = mvpInversion.multVector(new Vector4(xNdc, yNdc, 1, 1));
+
+    const pointNearMsPersp : Vector3 = new Vector3(pointNearMs.x/pointNearMs.w, pointNearMs.y/pointNearMs.w, pointNearMs.z/pointNearMs.w);
+    const pointFarMsPersp : Vector3 = new Vector3(pointFarMs.x/pointFarMs.w, pointFarMs.y/pointFarMs.w, pointFarMs.z/pointFarMs.w);
+
+    const rayDirection: Vector3 = pointFarMsPersp.subVector(pointNearMsPersp).normalize();
+    const rayOrigin: Vector3 = pointNearMsPersp;
+    const voxelSize: number = obj.baseVoxelSize; 
+    const ray: Ray = new Ray(rayOrigin, rayDirection);
+
+    console.log(`
+        Origin: ${ray.origin.toString()} |
+        Direction: ${ray.direction.toString()} |
+        Point pos (model space) : ${pointFarMsPersp.toString()} |
+        Camera pos (model space): ${cameraPositionMs.toString()}
+    `);
+    
+    let currentRayT: number = 0;
+    if(obj.getVoxelFromPoint(ray.get(currentRayT))){
+        return obj.pointCoordinatesToVexelId(ray.get(currentRayT));
+    }
+
+    const xSign : number = ray.direction.x == 0? 0 : ray.direction.x < 0? -1 : 1;
+    const ySign : number = ray.direction.y == 0? 0 : ray.direction.y < 0? -1 : 1;
+    const zSign : number = ray.direction.z == 0? 0 : ray.direction.z < 0? -1 : 1;
+
+    const sign : Vector3 = new Vector3(
+        xSign, ySign, zSign
+    );
+
+
+
+    //returns values of the first x,y,z of the next cell
+    //assumes that voxelSize > 1 distance unit
+    //returns null if sign for this dimension is 0
+    const getNextVoxelX = (curX: number, xSign: number) : number | null =>{
+        return xSign == 0? null : xSign==1? Math.ceil(curX/voxelSize)*voxelSize+voxelSize : Math.floor(curX/voxelSize)*voxelSize-1;
+    }
+
+    const getNextVoxelY = (curY: number, ySign: number) : number | null =>{
+        return ySign == 0? null : ySign==1? Math.ceil(curY/voxelSize)*voxelSize+voxelSize : Math.floor(curY/voxelSize)*voxelSize-1;
+    }
+
+    const getNextVoxelZ = (curZ: number, zSign: number) : number | null=>{
+        return zSign == 0? null : zSign==1? Math.ceil(curZ/voxelSize)*voxelSize+voxelSize : Math.floor(curZ/voxelSize)*voxelSize-1;
+    }
+
+    //returns t for the next instance when ray reaches new cell
+    const getNextT = (ray: Ray, t: number, sign : Vector3)=>{
+        const curRayValue = ray.get(t)
+        const nextVoxelX : number | null = getNextVoxelX(curRayValue.x , sign.x);
+        const nextVoxelY : number | null = getNextVoxelY(curRayValue.y, sign.y);
+        const nextVoxelZ: number | null = getNextVoxelZ(curRayValue.z , sign.z);
+
+            
+        const deltasT : number[] = [];
+        if(nextVoxelX!=null){
+            const diff = nextVoxelX - curRayValue.x;
+            const deltaT = diff/rayDirection.x;
+            deltasT.push(deltaT)
+        }
+        if(nextVoxelY!=null){
+            const diff = nextVoxelY - curRayValue.y;
+            const deltaT = diff/rayDirection.y;
+            deltasT.push(deltaT)
+        }
+        if(nextVoxelZ!=null){
+            const diff = nextVoxelZ - curRayValue.z;
+            const deltaT = diff/rayDirection.z;
+            deltasT.push(deltaT)
+        }        
+        
+        //there shouldn't be any possible way for all signs to be 0 so it's assumed that tForNextVoxels is never empty at this point
+        const minT = Math.min(...deltasT);
+
+                
+        console.log(`[getNextT] finding delta beetwen 2 arguments of ray
+            position before = ${curRayValue.toString()} |
+            sign = ${sign} |
+            voxelSize = ${voxelSize} |
+            next (x,y,z) = (${nextVoxelX},${nextVoxelY},${nextVoxelZ})
+            diffs (x,y,z) = (${nextVoxelX as number - curRayValue.x},${nextVoxelY as number - curRayValue.y},${nextVoxelZ as number - curRayValue.z})
+            deltaT = (${minT})
+            `)
+
+        return minT;
+    }
+    console.log(`FAR, ${camera.far}`)
+
+    //later it will be modified to calculate only in bounding box
+    //for now just hard stop when reaching far plane 
+    while(ray.get(currentRayT).z > -camera.far){
+        const deltaT : number = getNextT(ray, currentRayT, sign);
+        currentRayT += deltaT;
+
+        if(obj.getVoxelFromPoint(ray.get(currentRayT))){
+            return obj.pointCoordinatesToVexelId(ray.get(currentRayT));
+        }
+    }
+
+    return null;
+}

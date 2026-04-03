@@ -7,6 +7,9 @@ import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
 import type { VoxelObject } from "../classes/voxelObject";
 import { additionalZShader, baseShader, baseShaderWithWireframe } from "../shaders/baseRenderableObjectShaders";
+import { Vector3 } from "../math/vector3.type";
+import { getVoxelFromObject } from "../classes/rayCaster";
+import { Vector2 } from "../math/vector2.type";
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null;
@@ -68,6 +71,40 @@ export default function EditorCanvas(props: EditorCanvasProps) {
           canvas.height = h;
         }
     };
+
+    function getMousePos(canvas: HTMLCanvasElement, evt: React.MouseEvent<HTMLCanvasElement, MouseEvent>) {
+    var rect = canvas.getBoundingClientRect();
+        return {
+        x: (evt.clientX - rect.left) / (rect.right - rect.left) * canvas.width,
+        y: (evt.clientY - rect.top) / (rect.bottom - rect.top) * canvas.height
+        };
+    }
+
+    function onClick(e: React.MouseEvent<HTMLCanvasElement, MouseEvent>){
+        if(!canvasRef.current) return; 
+        const canvas = canvasRef.current;
+
+
+        //console.log(getMousePos(canvasRef.current, e));
+        const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
+
+        const cameraTranslation : Matrix4 = Matrices4.translation(props.camera.transform.translation);
+        const cameraScale : Matrix4 = Matrices4.scaling(props.camera.transform.scale);
+        const cameraRotation : Matrix4 = Matrices4.rotation(degreeToRadians(props.camera.transform.rotation.x), degreeToRadians(props.camera.transform.rotation.y), degreeToRadians(props.camera.transform.rotation.z));
+
+        const objectTranslation : Matrix4 = props.objectProperties? Matrices4.translation(props.objectProperties.translation) : Matrices4.identity();
+        const objectScale : Matrix4 = props.objectProperties? Matrices4.scaling(props.objectProperties.scale) : Matrices4.identity();
+        const objectRotation: Matrix4 = props.objectProperties? Matrices4.rotation(degreeToRadians(props.objectProperties.rotation.x), degreeToRadians(props.objectProperties.rotation.y), degreeToRadians(props.objectProperties.rotation.z)) : Matrices4.identity();
+
+        const objectTransformMatrix = objectTranslation.multMatrix(objectRotation).multMatrix(objectScale);
+        const ndcProjectionMatrix = props.camera.projectionType==="orthographic"?
+            PerspectiveMatrices.orthogonalProjection(-canvas.width/2, canvas.width/2,-canvas.height/2, canvas.height/2, props.camera.near, props.camera.far) 
+            : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height);
+        const cameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion();
+
+        const rayCastingResult : Vector3 | null = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
+        console.log(rayCastingResult);
+    }
 
     const initRenderer = async () => {
         const adapter = await navigator.gpu?.requestAdapter();
@@ -363,6 +400,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     <div className="CanvasContainer">
         <canvas
         ref={canvasRef}
+        onClick={e=>onClick(e)}
         className="EditorMainCanvas"
         />
     </div>

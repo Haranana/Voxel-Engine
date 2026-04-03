@@ -29,7 +29,7 @@ export default function EditorPage(){
             scale: new Vector3(1,1,1),
             rotation: new Vector3(0,0,0),
         },
-        projectionType: "orthographic",
+        projectionType: "perspective",
     })
 
     const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {

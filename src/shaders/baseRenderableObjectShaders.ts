@@ -64,7 +64,7 @@ export function baseShaderWithWireframe(){
             };
 
             fn fequal(a : f32, b: f32) -> bool{
-                return abs(a - b) < 0.05;
+                return abs(a - b) < 0.04;
             }
 
             @group(0) @binding(0) var<uniform> uniformData: UniformDataStruct;

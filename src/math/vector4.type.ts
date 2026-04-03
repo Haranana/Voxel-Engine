@@ -68,6 +68,10 @@ export class Vector4 {
         return `(${this.x}, ${this.y}, ${this.z}, ${this.w})`;
     }
 
+    toArray3(): [number, number, number] {
+        return [this.x, this.y, this.z];
+    }
+
     toArray4(): [number, number, number, number] {
         return [this.x, this.y, this.z, this.w];
     }
