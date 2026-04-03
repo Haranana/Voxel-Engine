@@ -59,7 +59,7 @@ export function getVoxelFromObject(camera: Camera,
     `);
     
     let currentRayT: number = 0;
-    if(obj.getVoxelFromPoint(ray.get(currentRayT))){
+    if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
         return obj.pointCoordinatesToVexelId(ray.get(currentRayT));
     }
 
@@ -136,7 +136,7 @@ export function getVoxelFromObject(camera: Camera,
         const deltaT : number = getNextT(ray, currentRayT, sign);
         currentRayT += deltaT;
 
-        if(obj.getVoxelFromPoint(ray.get(currentRayT))){
+        if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
             return obj.pointCoordinatesToVexelId(ray.get(currentRayT));
         }
     }
