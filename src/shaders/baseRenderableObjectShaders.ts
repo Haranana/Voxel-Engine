@@ -48,7 +48,6 @@ export function baseShaderWithWireframe(){
                 objectTransform: mat4x4f,
                 ndcProjection: mat4x4f,    
                 viewMatrix: mat4x4f,
-                baseColor: vec4f,
             };
 
             struct Vertex{

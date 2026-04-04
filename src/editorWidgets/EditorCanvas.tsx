@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
 import type { ObjectProperties, RenderMode } from "../RenderableObjectTypes";
 import { degreeToRadians } from "../math/utils";
@@ -10,10 +10,13 @@ import { additionalZShader, baseShader, baseShaderWithWireframe } from "../shade
 import { Vector3 } from "../math/vector3.type";
 import { getVoxelFromObject } from "../classes/rayCaster";
 import { Vector2 } from "../math/vector2.type";
+import { Vector4 } from "../math/vector4.type";
+import type { Voxel } from "../classes/voxel.type";
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null;
     selectedObject: VoxelObject,
+    onSelectedObjectChanged: (v: VoxelObject) => void;
     camera: Camera;
     renderMode: RenderMode;
 }
@@ -58,8 +61,11 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     });
 
     const canRender = () => {
+
         const r = renderDataRef.current;
-        return r.context && r.device && r.pipeline && r.uniformDataBuffer && r.bindGroup && r.uniformView  && r.vertexBuffer && r.verticesAmount ; 
+        return r.context && r.device && r.pipeline; 
+        
+        
     }
 
     const resize = (canvas: HTMLCanvasElement) => {
@@ -103,14 +109,29 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const cameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion();
 
         const rayCastingResult : Vector3 | null = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
-        console.log(rayCastingResult);
+        if(rayCastingResult){
+            console.log(`clicked on voxel: ${rayCastingResult.toString()}`);
+        }
+
+        if(rayCastingResult){
+            props.selectedObject.setVoxel(rayCastingResult, {color: new Vector4(160, 130, 210, 255),});
+            props.onSelectedObjectChanged(props.selectedObject.copy());
+        }
+        
+    }
+
+    function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>){
+        if(!canvasRef.current) return; 
+        const canvas = canvasRef.current;
+        const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
     }
 
     const initRenderer = async () => {
+        console.log('[initRenderer] Starting initialization');
         const adapter = await navigator.gpu?.requestAdapter();
         const device = await adapter?.requestDevice();
         if (!device) {
-            console.log('need a browser that supports WebGPU');
+            console.log('[initRenderer] device is null (does the browser support WebGPU?)');
             return;
         }
 
@@ -119,9 +140,11 @@ export default function EditorCanvas(props: EditorCanvasProps) {
 
         const context = canvas.getContext('webgpu');
         if(!context){
-            console.log('canvas context not present');
+            console.log('[initRenderer] canvas context is null');
             return;
         }
+        console.log('[initRenderer] initialization not interrupted');
+
         const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
         context.configure({
             device,
@@ -208,7 +231,75 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
-        if(props.selectedObject.shouldRebuildMesh()) props.selectedObject.rebuildMesh();
+        const bindGroupSelectedObject = device.createBindGroup({
+            label: 'bind group for uniform data',
+            layout: bindGroupLayout,
+            entries:[{
+                binding: 0,
+                resource: {buffer: selectedObjectUniformBuffer},
+            }]
+        })
+
+        const bindGroupOverlay = device.createBindGroup({
+            label: 'bind group for uniform data',
+            layout: bindGroupLayout,
+            entries:[{
+                binding: 0,
+                resource: {buffer: overlayUniformViewBuffer},
+            }]
+        })
+
+        renderDataRef.current.context = context;
+        renderDataRef.current.device = device;
+        renderDataRef.current.pipeline = pipeline;
+        renderDataRef.current.uniformDataBuffer = [selectedObjectUniformBuffer]
+        renderDataRef.current.bindGroup = [bindGroupSelectedObject];
+        renderDataRef.current.uniformView = [selectedObjectUniformDataView];
+        //renderDataRef.current.vertexBuffer = vertexDataBuffer;
+        //renderDataRef.current.verticesAmount = numVertices;
+
+        //renderDataRef.current.triangleIndicesAmount = trianglesIndices.length;
+        //renderDataRef.current.lineIndicesAmount = linesIndices.length;
+        //renderDataRef.current.quadIndicesAmount = quadsIndices.length;
+        //renderDataRef.current.trianglesIndexBuffer = trianglesIndexBuffer;
+        //renderDataRef.current.linesIndexBuffer = linesIndexBuffer;
+        //renderDataRef.current.quadsIndexBuffer = quadsIndexBuffer;
+
+        
+        if(canRender()) renderVoxelObject();
+    }
+
+    function renderVoxelObject(){
+
+        const r = renderDataRef.current;
+        if (!canRender()) return;
+        
+
+        const canvas = canvasRef.current!;
+
+        const context = r.context!;
+        const device = r.device!;
+        const pipeline = r.pipeline!;
+        const uniformDataBuffer = r.uniformDataBuffer!;
+        const bindGroup = r.bindGroup!;
+        const uniformView = r.uniformView!;
+        //const vertexBuffer = r.vertexBuffer!;
+        //const verticesAmount = r.verticesAmount!;
+        
+        //const trianglesIndicesAmount = renderDataRef.current.triangleIndicesAmount! ;
+        //const linesIndicesAmount = renderDataRef.current.lineIndicesAmount!;
+        //const quadsIndicesAmount = renderDataRef.current.quadIndicesAmount!;
+        //const trianglesIndexBuffer = renderDataRef.current.trianglesIndexBuffer!;
+        //const linesIndexBuffer = renderDataRef.current.linesIndexBuffer!;
+        //const quadsIndexBuffer = renderDataRef.current.quadsIndexBuffer!;
+
+        let depthTexture = r.depthTexture;
+
+        resize(canvas!);
+        if(props.selectedObject.shouldRebuildMesh()) {
+            console.log(`[renderVoxelObject] calling rebuildMesh`);
+            props.selectedObject.rebuildMesh();
+        }
         const {vertexData, linesIndices, trianglesIndices, quadsIndices, numVertices} = props.selectedObject.mesh!.getVerticesData();
 
         const vertexDataBuffer = device.createBuffer({
@@ -238,73 +329,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
         });
         device.queue.writeBuffer(quadsIndexBuffer, 0 , quadsIndices);
-        
-
-
-        const bindGroupSelectedObject = device.createBindGroup({
-            label: 'bind group for uniform data',
-            layout: bindGroupLayout,
-            entries:[{
-                binding: 0,
-                resource: {buffer: selectedObjectUniformBuffer},
-            }]
-        })
-
-        const bindGroupOverlay = device.createBindGroup({
-            label: 'bind group for uniform data',
-            layout: bindGroupLayout,
-            entries:[{
-                binding: 0,
-                resource: {buffer: overlayUniformViewBuffer},
-            }]
-        })
-
-        renderDataRef.current.context = context;
-        renderDataRef.current.device = device;
-        renderDataRef.current.pipeline = pipeline;
-        renderDataRef.current.uniformDataBuffer = [selectedObjectUniformBuffer]
-        renderDataRef.current.bindGroup = [bindGroupSelectedObject];
-        renderDataRef.current.uniformView = [selectedObjectUniformDataView];
-        renderDataRef.current.vertexBuffer = vertexDataBuffer;
-        renderDataRef.current.verticesAmount = numVertices;
-
-        renderDataRef.current.triangleIndicesAmount = trianglesIndices.length;
-        renderDataRef.current.lineIndicesAmount = linesIndices.length;
-        renderDataRef.current.quadIndicesAmount = quadsIndices.length;
-        renderDataRef.current.trianglesIndexBuffer = trianglesIndexBuffer;
-        renderDataRef.current.linesIndexBuffer = linesIndexBuffer;
-        renderDataRef.current.quadsIndexBuffer = quadsIndexBuffer;
-
-        
-        if(canRender()) renderVoxelObject();
-    }
-
-    function renderVoxelObject(){
-
-        const r = renderDataRef.current;
-        if (!canRender()) return;
-
-        const canvas = canvasRef.current!;
-
-        const context = r.context!;
-        const device = r.device!;
-        const pipeline = r.pipeline!;
-        const uniformDataBuffer = r.uniformDataBuffer!;
-        const bindGroup = r.bindGroup!;
-        const uniformView = r.uniformView!;
-        const vertexBuffer = r.vertexBuffer!;
-        const verticesAmount = r.verticesAmount!;
-        
-        const trianglesIndicesAmount = renderDataRef.current.triangleIndicesAmount! ;
-        const linesIndicesAmount = renderDataRef.current.lineIndicesAmount!;
-        const quadsIndicesAmount = renderDataRef.current.quadIndicesAmount!;
-        const trianglesIndexBuffer = renderDataRef.current.trianglesIndexBuffer!;
-        const linesIndexBuffer = renderDataRef.current.linesIndexBuffer!;
-        const quadsIndexBuffer = renderDataRef.current.quadsIndexBuffer!;
-
-        let depthTexture = r.depthTexture;
-
-        resize(canvas!);
 
         const canvasTexture = context.getCurrentTexture();
         const view = canvasTexture.createView();
@@ -365,17 +389,16 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 objectTransform: shadersUniformsObjectTransformMatrix,
                 ndcProjection: shadersUniformsNdcProjectionMatrix,
                 viewMatrix: shadersUniformsCameraViewMatrix,
-                baseColor: [0.5,0.3,0.62,1],
             });
             device!.queue.writeBuffer(uniformDataBuffer[0], 0, uniformView[0].arrayBuffer);
 
             const pass : GPURenderPassEncoder = encoder.beginRenderPass(renderPassDescriptor);
 
             pass.setPipeline(pipeline);
-            pass.setVertexBuffer(0 , vertexBuffer);
+            pass.setVertexBuffer(0 , vertexDataBuffer);
             pass.setIndexBuffer(trianglesIndexBuffer, "uint32");
             pass.setBindGroup(0, bindGroup[0]);
-            pass.drawIndexed(trianglesIndicesAmount);
+            pass.drawIndexed(trianglesIndices.length);
            
             pass.end();
 
@@ -394,13 +417,14 @@ export default function EditorCanvas(props: EditorCanvasProps) {
 
   useEffect(()=>{
     renderVoxelObject();
-  }, [props.objectProperties , props.camera])
+  }, [props.objectProperties , props.camera, props.selectedObject])
 
   return (
     <div className="CanvasContainer">
         <canvas
         ref={canvasRef}
         onClick={e=>onClick(e)}
+        onPointerMove={e=>onPointerMove(e)}
         className="EditorMainCanvas"
         />
     </div>

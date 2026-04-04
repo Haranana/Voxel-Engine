@@ -32,10 +32,11 @@ export function getVoxelFromObject(camera: Camera,
     
     const mvpInversion = ndcProjectionMatrix.multMatrix(cameraViewMatrix).multMatrix(objectTransformMatrix).getInversion();
 
+    /*
     const cameraPositionMs = new Vector3(
     ...objectTransformMatrix.getInversion().multVector(
         new Vector4(...camera.transform.translation.toArray4())
-    ).toArray3());
+    ).toArray3());*/
 
     const xNdc = (2 * pointSs.x) / canvasSize.x - 1;
     const yNdc = 1 - (2 * pointSs.y) / canvasSize.y;
@@ -51,12 +52,13 @@ export function getVoxelFromObject(camera: Camera,
     const voxelSize: number = obj.baseVoxelSize; 
     const ray: Ray = new Ray(rayOrigin, rayDirection);
 
+    /*
     console.log(`
         Origin: ${ray.origin.toString()} |
         Direction: ${ray.direction.toString()} |
         Point pos (model space) : ${pointFarMsPersp.toString()} |
         Camera pos (model space): ${cameraPositionMs.toString()}
-    `);
+    `)  */;
     
     let currentRayT: number = 0;
     if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
@@ -116,7 +118,7 @@ export function getVoxelFromObject(camera: Camera,
         //there shouldn't be any possible way for all signs to be 0 so it's assumed that tForNextVoxels is never empty at this point
         const minT = Math.min(...deltasT);
 
-                
+        /*
         console.log(`[getNextT] finding delta beetwen 2 arguments of ray
             position before = ${curRayValue.toString()} |
             sign = ${sign} |
@@ -124,11 +126,11 @@ export function getVoxelFromObject(camera: Camera,
             next (x,y,z) = (${nextVoxelX},${nextVoxelY},${nextVoxelZ})
             diffs (x,y,z) = (${nextVoxelX as number - curRayValue.x},${nextVoxelY as number - curRayValue.y},${nextVoxelZ as number - curRayValue.z})
             deltaT = (${minT})
-            `)
+            `)*/
 
         return minT;
     }
-    console.log(`FAR, ${camera.far}`)
+    
 
     //later it will be modified to calculate only in bounding box
     //for now just hard stop when reaching far plane 

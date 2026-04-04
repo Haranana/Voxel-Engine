@@ -33,6 +33,7 @@ export class VoxelObject{
     //simple meshing with culling
     //in future probably add greedy meshing for exports
     rebuildMesh(){
+        console.log(`[rebuildMesh]`);
         const out: RenderableObject = new RenderableObject();
         const objectStart : Vector3 = new Vector3(-this.size.x/2 , -this.size.y/2, -this.size.z/2) 
         for(let x = 0; x < this.size.x; x++){
@@ -41,7 +42,7 @@ export class VoxelObject{
                     if(this.getVoxel(new Vector3(x,y,z))){
                         
                         const voxelStart = new Vector3( (objectStart.x +x)*this.baseVoxelSize , (objectStart.y+y)*this.baseVoxelSize, (objectStart.z+z)*this.baseVoxelSize);
-                        
+                        const voxelColor = this.getVoxel(new Vector3(x,y,z))!.color;
                         const voxelVertices : Map<string, Vector3> = new Map();
                         
                         voxelVertices.set("A" , voxelStart.addVector(new Vector3(0,0,this.baseVoxelSize)));
@@ -73,22 +74,22 @@ export class VoxelObject{
                             out.vertices.push({
                                 position: voxelVertices.get("A")!,
                                 quadUV: new Vector2(0,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("B")!,
                                 quadUV: new Vector2(1,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("C")!,
                                 quadUV: new Vector2(1,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("D")!,
                                 quadUV: new Vector2(0,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                             out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
@@ -100,22 +101,22 @@ export class VoxelObject{
                                                             out.vertices.push({
                                 position: voxelVertices.get("F")!,
                                 quadUV: new Vector2(0,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("E")!,
                                 quadUV: new Vector2(1,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("H")!,
                                 quadUV: new Vector2(1,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("G")!,
                                 quadUV: new Vector2(0,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                                             out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
@@ -127,22 +128,22 @@ export class VoxelObject{
                             out.vertices.push({
                                 position: voxelVertices.get("E")!,
                                 quadUV: new Vector2(0,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("F")!,
                                 quadUV: new Vector2(1,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("B")!,
                                 quadUV: new Vector2(1,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("A")!,
                                 quadUV: new Vector2(0,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                                                             out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
@@ -154,22 +155,22 @@ export class VoxelObject{
                             out.vertices.push({
                                 position: voxelVertices.get("D")!,
                                 quadUV: new Vector2(0,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("C")!,
                                 quadUV: new Vector2(1,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("G")!,
                                 quadUV: new Vector2(1,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("H")!,
                                 quadUV: new Vector2(0,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                             out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
@@ -181,22 +182,22 @@ export class VoxelObject{
                             out.vertices.push({
                                 position: voxelVertices.get("E")!,
                                 quadUV: new Vector2(0,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("A")!,
                                 quadUV: new Vector2(1,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("D")!,
                                 quadUV: new Vector2(1,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("H")!,
                                 quadUV: new Vector2(0,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                             out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
@@ -208,22 +209,22 @@ export class VoxelObject{
                             out.vertices.push({
                                 position: voxelVertices.get("B")!,
                                 quadUV: new Vector2(0,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("F")!,
                                 quadUV: new Vector2(1,0), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("G")!,
                                 quadUV: new Vector2(1,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.vertices.push({
                                 position: voxelVertices.get("C")!,
                                 quadUV: new Vector2(0,1), 
-                                color: new Vector4(200,70,200,255),
+                                color: voxelColor,
                             })
                             out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
                             out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
@@ -233,11 +234,10 @@ export class VoxelObject{
                 }
             }
         }
-        //console.log(`New mesh data: | lines: ${out.linesIndices.length/2} | triangles: ${out.trianglesIndices.length/3} | quads: ${out.quadsIndices.length/8} | vertices: ${out.vertices.length/3}`);
         this.mesh = out;
+        this.voxelsModified = false;
     }
 
-    //all those functions for now work only for 1 chunk
 
     //receives point in this object model space
     //returns id of possible vexel in this object
@@ -251,7 +251,7 @@ export class VoxelObject{
         const zCord :number = Math.floor(v.z/this.baseVoxelSize)+this.size.z/2;
         const result = new Vector3(xCord, yCord, zCord);
 
-        console.log(`[pointCoordinatesToVexelId] chunkSize:${this.size} Conversion: ${v.toString()} => ${result.toString()}`)
+        //console.log(`[pointCoordinatesToVexelId] chunkSize:${this.size} Conversion: ${v.toString()} => ${result.toString()}`)
         
         return result;
     }
@@ -278,6 +278,7 @@ export class VoxelObject{
     setVoxel(pos: Vector3, newVoxel: Voxel){
         try{
             this.voxels[pos.x][pos.y][pos.z] = newVoxel;
+            this.voxelsModified = true;
             return true;
         }catch(e: any){
             return false;
@@ -288,6 +289,19 @@ export class VoxelObject{
     //return copy of voxel in those coordinates or null if there's none
     getVoxelFromModelSpacePoint(v: Vector3) : Voxel | null{
         return this.getVoxel(this.pointCoordinatesToVexelId(v));
+    }
+
+    copy() : VoxelObject{
+        const out: VoxelObject = new VoxelObject(this.size);
+        out.voxels = this.voxels.map(layer =>
+            layer.map(row =>
+                row.map(voxel => voxel ? { ...voxel } : null)
+            )
+        );
+        out.baseVoxelSize = this.baseVoxelSize;
+        out.mesh = this.mesh;
+        out.voxelsModified = this.voxelsModified;
+        return out;
     }
 
 }

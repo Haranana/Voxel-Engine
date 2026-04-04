@@ -32,6 +32,11 @@ export default function EditorPage(){
         projectionType: "perspective",
     })
 
+    const onSelectedObjectChanged = (newObject: VoxelObject) => {
+        console.log("[EditorPage] called onSelectedObjectChanged")
+        setSelectedObject(newObject);
+    }
+
     const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
          setSelectedObjectProperties(newProp);
     }
@@ -42,7 +47,12 @@ export default function EditorPage(){
 
     return <div className="EditorPage">
         <CameraPropertiesWidget camera={selectedCamera} onCameraChange={onSelectedCameraPropertiesChanged}></CameraPropertiesWidget>
-        <EditorCanvas objectProperties={selectedObjectProperties} camera={selectedCamera} selectedObject={selectedObject} renderMode={selectedRenderMode}  ></EditorCanvas>
+        <EditorCanvas objectProperties={selectedObjectProperties} 
+                    camera={selectedCamera} 
+                    onSelectedObjectChanged={onSelectedObjectChanged}
+                    selectedObject={selectedObject} 
+                    renderMode={selectedRenderMode}  
+                    ></EditorCanvas>
         {selectedObjectProperties == null? "" : <RenderableObjectProperties 
         objectProperties={selectedObjectProperties} 
         onPropertiesChange={onSelectedObjectPropertiesChanged}>
