@@ -1,0 +1,73 @@
+.ResizableContainer{
+    border: 1px solid;
+    border-color: cadetblue;
+}
+
+.ResizableContainerVert{
+    display: flex;
+
+    flex-direction: column;
+    height: 100%;
+}
+
+.ResizableContainerHor{
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: row;
+    width: 100%;
+}
+
+.ResizableContainerTop{
+    display: flex;
+    flex-direction: row;
+}
+
+.ResizableContainerBottom{
+        display: flex;
+    flex-direction: row;
+}
+
+.ResizableContainerChildWrapper{
+    flex: 1;
+    min-width: 0;
+    /*background-color: cadetblue;*/
+}
+
+.ResizableContainerHandle{
+    cursor: crosshair;
+    margin: 0px;
+    padding: 0px;
+    border: 0px;
+}
+
+.ContainerVertHandle{
+    cursor: row-resize;
+}
+
+.ContainerHorHandle{
+    cursor: col-resize;
+}
+
+.ContainerCornerHandle{
+    cursor: move;
+}
+.ContainerTopHandle{
+    flex: 1;
+    min-width: 0;
+    /*background-color: blue;*/
+}
+
+.ContainerBottomHandle{
+    /*background-color: red;*/
+    flex: 1;
+    min-width: 0;
+}
+
+.ContainerLeftHandle{
+    /*background-color: purple;*/
+}
+
+.ContainerRightHandle{
+    /*background-color: green;*/
+}

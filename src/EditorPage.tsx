@@ -9,6 +9,7 @@ import type { Camera } from './classes/camera';
 import CameraPropertiesWidget from './editorWidgets/CameraPropertiesWidget';
 import { VoxelObject } from './classes/voxelObject';
 import { getBasicSampleVoxelObject } from './sampleObjects';
+import ResizableContainer from './editorWidgets/ResizableContainer';
 
 export default function EditorPage(){
     const [selectedObjectProperties, setSelectedObjectProperties] = useState<ObjectProperties | null >( {
@@ -45,7 +46,22 @@ export default function EditorPage(){
         setSelectedCamera(newCamera)
     }
 
-    return <div className="EditorPage">
+    return <div className="EditorPage" >
+        <ResizableContainer
+            child = {null}
+            defaultWidth = {200}
+            isWidthChangeable = {true}
+            minWidth = {50}
+            maxWidth = {500}
+            defaultHeight = {300}
+            isHeightChangeable = {true}
+            minHeight = {100}
+            maxHeight = {500}
+            hasRightHandle={true}
+            hasLeftHandle={true}
+            hasBottomHandle={true}
+            hasTopHandle={true}
+        />
         <CameraPropertiesWidget camera={selectedCamera} onCameraChange={onSelectedCameraPropertiesChanged}></CameraPropertiesWidget>
         <EditorCanvas objectProperties={selectedObjectProperties} 
                     camera={selectedCamera} 
