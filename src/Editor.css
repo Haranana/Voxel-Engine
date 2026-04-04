@@ -1,21 +1,19 @@
-.EditorPage{
-  display: flex;
-  flex-direction: row;
-  margin: 0;
-}
-
-.CanvasContainer{
-    width: 800px;
-    height: 600px;
-    display: block;
-    border: 2px solid orange;
+.CanvasContainer {
+  min-width: 300px;
+  min-height: 250px;
+  flex: 1 1 auto;
+  display: block;
+  border: 2px solid orange;
+  min-width: 0;
+  min-height: 0;
 }
 
 :root {
   --bg-color: #fff;
-  --line-color-1: #AAA;
-  --line-color-2: #DDD;
+  --line-color-1: #aaa;
+  --line-color-2: #ddd;
 }
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg-color: #000;
@@ -23,22 +21,88 @@
     --line-color-2: #333;
   }
 }
+
 .EditorMainCanvas {
-  display: block; 
-  width: 100%;     
+  display: block;
+  width: 100%;
   height: 100%;
   background-color: var(--bg-color);
-  background-image: linear-gradient(var(--line-color-1) 1.5px, transparent 1.5px),
-      linear-gradient(90deg, var(--line-color-1) 1.5px, transparent 1.5px),
-      linear-gradient(var(--line-color-2) 1px, transparent 1px),
-      linear-gradient(90deg, var(--line-color-2) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--line-color-1) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, var(--line-color-1) 1.5px, transparent 1.5px),
+    linear-gradient(var(--line-color-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-color-2) 1px, transparent 1px);
   background-position: -1.5px -1.5px, -1.5px -1.5px, -1px -1px, -1px -1px;
-  background-size: 100px 100px, 100px 100px, 10px 10px, 10px 10px;  
+  background-size: 100px 100px, 100px 100px, 10px 10px, 10px 10px;
 }
 
-.EditorWidget{
-  border-radius: 10px;
-  border: 2px solid orange;
-  margin-left: 10px;
-  padding: 5px;
+.EditorPage {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 5px;
+  box-sizing: border-box;
+}
+
+.EditorNav {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 30px;
+  min-height: 30px;
+  width: 100%;
+  border: 1px solid lightgreen;
+  box-sizing: border-box;
+}
+
+.EditorBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+.EditorBodyHorizontal {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.EditorBodyVertical {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.EditorBodyLeft,
+.EditorBodyRight {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.EditorBodyTop,
+.EditorBodyBottom {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.EditorBodyCenter {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }

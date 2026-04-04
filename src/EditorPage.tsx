@@ -1,78 +1,361 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import "../src/Editor.css";
+import EditorCanvas from "./editorWidgets/EditorCanvas";
+import RenderableObjectProperties from "./editorWidgets/RenderableObjectProperties";
+import { type RenderMode, type ObjectProperties } from "./RenderableObjectTypes";
+import { Vector3 } from "./math/vector3.type";
+import type { Camera } from "./classes/camera";
+import CameraPropertiesWidget from "./editorWidgets/CameraPropertiesWidget";
+import { VoxelObject } from "./classes/voxelObject";
+import { getBasicSampleVoxelObject } from "./sampleObjects";
+import ResizableContainer, {
+  type ResizableContainerConsts,
+} from "./editorWidgets/ResizableContainer";
 
-import { useState } from 'react';
-import '../src/Editor.css'
-import EditorCanvas from './editorWidgets/EditorCanvas'
-import RenderableObjectProperties from './editorWidgets/RenderableObjectProperties'
-import { type RenderMode, type ObjectProperties } from './RenderableObjectTypes';
-import { Vector3 } from './math/vector3.type';
-import type { Camera } from './classes/camera';
-import CameraPropertiesWidget from './editorWidgets/CameraPropertiesWidget';
-import { VoxelObject } from './classes/voxelObject';
-import { getBasicSampleVoxelObject } from './sampleObjects';
-import ResizableContainer from './editorWidgets/ResizableContainer';
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
 
-export default function EditorPage(){
-    const [selectedObjectProperties, setSelectedObjectProperties] = useState<ObjectProperties | null >( {
-        translation: new Vector3(0,0,-500),
-        scale: new Vector3(1,1,1),
-        rotation: new Vector3(0,0,0), //in degrees
+export default function EditorPage() {
+  const [selectedObjectProperties, setSelectedObjectProperties] =
+    useState<ObjectProperties | null>({
+      translation: new Vector3(0, 0, -500),
+      scale: new Vector3(1, 1, 1),
+      rotation: new Vector3(0, 0, 0),
     });
 
-    const [selectedObject, setSelectedObject] = useState<VoxelObject>(getBasicSampleVoxelObject());
-    const [selectedRenderMode, setSelectedRenderMode] = useState<RenderMode>("TriangleWireframe");
+  const [selectedObject, setSelectedObject] = useState<VoxelObject>(
+    getBasicSampleVoxelObject()
+  );
+  const [selectedRenderMode, setSelectedRenderMode] =
+    useState<RenderMode>("TriangleWireframe");
 
-    const [selectedCamera, setSelectedCamera] = useState<Camera>({
-        fovY: 90,
-        near: 0.1,
-        far: 1000,
-        transform: {
-            translation: new Vector3(0,0,0),
-            scale: new Vector3(1,1,1),
-            rotation: new Vector3(0,0,0),
-        },
-        projectionType: "perspective",
-    })
+  const bodyHorizontalRef = useRef<HTMLDivElement | null>(null);
+  const bodyVerticalRef = useRef<HTMLDivElement | null>(null);
 
-    const onSelectedObjectChanged = (newObject: VoxelObject) => {
-        console.log("[EditorPage] called onSelectedObjectChanged")
-        setSelectedObject(newObject);
-    }
+  const [horizontalWidth, setHorizontalWidth] = useState(0);
+  const [verticalHeight, setVerticalHeight] = useState(0);
 
-    const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
-         setSelectedObjectProperties(newProp);
-    }
+  const centerMinWidth = 300;
+  const centerMinHeight = 250;
 
-    const onSelectedCameraPropertiesChanged = (newCamera: Camera) =>{
-        setSelectedCamera(newCamera)
-    }
+  const leftPanelData: ResizableContainerConsts = useMemo(
+    () => ({
+      maxWidth: 300,
+      minWidth: 100,
+      maxHeight: 2000,
+      minHeight: 400,
+    }),
+    []
+  );
 
-    return <div className="EditorPage" >
-        <ResizableContainer
-            child = {null}
-            defaultWidth = {200}
-            isWidthChangeable = {true}
-            minWidth = {50}
-            maxWidth = {500}
-            defaultHeight = {300}
-            isHeightChangeable = {true}
-            minHeight = {100}
-            maxHeight = {500}
-            hasRightHandle={true}
-            hasLeftHandle={true}
-            hasBottomHandle={true}
-            hasTopHandle={true}
-        />
-        <CameraPropertiesWidget camera={selectedCamera} onCameraChange={onSelectedCameraPropertiesChanged}></CameraPropertiesWidget>
-        <EditorCanvas objectProperties={selectedObjectProperties} 
-                    camera={selectedCamera} 
-                    onSelectedObjectChanged={onSelectedObjectChanged}
-                    selectedObject={selectedObject} 
-                    renderMode={selectedRenderMode}  
-                    ></EditorCanvas>
-        {selectedObjectProperties == null? "" : <RenderableObjectProperties 
-        objectProperties={selectedObjectProperties} 
-        onPropertiesChange={onSelectedObjectPropertiesChanged}>
-            </RenderableObjectProperties>}
+  const rightPanelData: ResizableContainerConsts = useMemo(
+    () => ({
+      maxWidth: 300,
+      minWidth: 100,
+      maxHeight: 2000,
+      minHeight: 400,
+    }),
+    []
+  );
 
+  const topPanelData: ResizableContainerConsts = useMemo(
+    () => ({
+      maxWidth: 2000,
+      minWidth: 400,
+      maxHeight: 200,
+      minHeight: 100,
+    }),
+    []
+  );
+
+  const bottomPanelData: ResizableContainerConsts = useMemo(
+    () => ({
+      maxWidth: 2000,
+      minWidth: 400,
+      maxHeight: 200,
+      minHeight: 100,
+    }),
+    []
+  );
+
+  const [leftPanelWidth, setLeftPanelWidth] = useState(250);
+  const [rightPanelWidth, setRightPanelWidth] = useState(250);
+  const [topPanelHeight, setTopPanelHeight] = useState(150);
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(150);
+
+  const [selectedCamera, setSelectedCamera] = useState<Camera>({
+    fovY: 90,
+    near: 0.1,
+    far: 1000,
+    transform: {
+      translation: new Vector3(0, 0, 0),
+      scale: new Vector3(1, 1, 1),
+      rotation: new Vector3(0, 0, 0),
+    },
+    projectionType: "perspective",
+  });
+
+  const onLeftPanelWidthChange = (w: number) => {
+    const declaredClamped = clamp(w, leftPanelData.minWidth, leftPanelData.maxWidth);
+    const realMaxWidth = Math.max(
+      leftPanelData.minWidth,
+      horizontalWidth - rightPanelWidth - centerMinWidth
+    );
+    const finalWidth = clamp(
+      declaredClamped,
+      leftPanelData.minWidth,
+      realMaxWidth
+    );
+    setLeftPanelWidth(finalWidth);
+  };
+
+  const onRightPanelWidthChange = (w: number) => {
+    const declaredClamped = clamp(
+      w,
+      rightPanelData.minWidth,
+      rightPanelData.maxWidth
+    );
+    const realMaxWidth = Math.max(
+      rightPanelData.minWidth,
+      horizontalWidth - leftPanelWidth - centerMinWidth
+    );
+    const finalWidth = clamp(
+      declaredClamped,
+      rightPanelData.minWidth,
+      realMaxWidth
+    );
+    setRightPanelWidth(finalWidth);
+  };
+
+  const onTopPanelHeightChange = (h: number) => {
+    const declaredClamped = clamp(
+      h,
+      topPanelData.minHeight,
+      topPanelData.maxHeight
+    );
+    const realMaxHeight = Math.max(
+      topPanelData.minHeight,
+      verticalHeight - bottomPanelHeight - centerMinHeight
+    );
+    const finalHeight = clamp(
+      declaredClamped,
+      topPanelData.minHeight,
+      realMaxHeight
+    );
+    setTopPanelHeight(finalHeight);
+  };
+
+  const onBottomPanelHeightChange = (h: number) => {
+    const declaredClamped = clamp(
+      h,
+      bottomPanelData.minHeight,
+      bottomPanelData.maxHeight
+    );
+    const realMaxHeight = Math.max(
+      bottomPanelData.minHeight,
+      verticalHeight - topPanelHeight - centerMinHeight
+    );
+    const finalHeight = clamp(
+      declaredClamped,
+      bottomPanelData.minHeight,
+      realMaxHeight
+    );
+    setBottomPanelHeight(finalHeight);
+  };
+
+  useEffect(() => {
+    if (!bodyHorizontalRef.current) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setHorizontalWidth(entry.contentRect.width);
+    });
+
+    observer.observe(bodyHorizontalRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!bodyVerticalRef.current) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setVerticalHeight(entry.contentRect.height);
+    });
+
+    observer.observe(bodyVerticalRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (horizontalWidth <= 0) return;
+
+    const clampedLeft = clamp(
+      leftPanelWidth,
+      leftPanelData.minWidth,
+      Math.max(leftPanelData.minWidth, horizontalWidth - rightPanelWidth - centerMinWidth)
+    );
+
+    const clampedRight = clamp(
+      rightPanelWidth,
+      rightPanelData.minWidth,
+      Math.max(
+        rightPanelData.minWidth,
+        horizontalWidth - clampedLeft - centerMinWidth
+      )
+    );
+
+    const finalLeft = clamp(
+      clampedLeft,
+      leftPanelData.minWidth,
+      Math.max(leftPanelData.minWidth, horizontalWidth - clampedRight - centerMinWidth)
+    );
+
+    if (finalLeft !== leftPanelWidth) setLeftPanelWidth(finalLeft);
+    if (clampedRight !== rightPanelWidth) setRightPanelWidth(clampedRight);
+  }, [
+    horizontalWidth,
+    leftPanelWidth,
+    rightPanelWidth,
+    centerMinWidth,
+    leftPanelData,
+    rightPanelData,
+  ]);
+
+  useEffect(() => {
+    if (verticalHeight <= 0) return;
+
+    const clampedTop = clamp(
+      topPanelHeight,
+      topPanelData.minHeight,
+      Math.max(topPanelData.minHeight, verticalHeight - bottomPanelHeight - centerMinHeight)
+    );
+
+    const clampedBottom = clamp(
+      bottomPanelHeight,
+      bottomPanelData.minHeight,
+      Math.max(
+        bottomPanelData.minHeight,
+        verticalHeight - clampedTop - centerMinHeight
+      )
+    );
+
+    const finalTop = clamp(
+      clampedTop,
+      topPanelData.minHeight,
+      Math.max(topPanelData.minHeight, verticalHeight - clampedBottom - centerMinHeight)
+    );
+
+    if (finalTop !== topPanelHeight) setTopPanelHeight(finalTop);
+    if (clampedBottom !== bottomPanelHeight) setBottomPanelHeight(clampedBottom);
+  }, [
+    verticalHeight,
+    topPanelHeight,
+    bottomPanelHeight,
+    centerMinHeight,
+    topPanelData,
+    bottomPanelData,
+  ]);
+
+  const onSelectedObjectChanged = (newObject: VoxelObject) => {
+    setSelectedObject(newObject);
+  };
+
+  const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
+    setSelectedObjectProperties(newProp);
+  };
+
+  const onSelectedCameraPropertiesChanged = (newCamera: Camera) => {
+    setSelectedCamera(newCamera);
+  };
+
+  const editorBodyRightChild =
+    selectedObjectProperties != null ? (
+      <RenderableObjectProperties
+        objectProperties={selectedObjectProperties}
+        onPropertiesChange={onSelectedObjectPropertiesChanged}
+      />
+    ) : null;
+
+  return (
+    <div className="EditorPage">
+      <div className="EditorNav"></div>
+
+      <div className="EditorBody">
+        <div className="EditorBodyHorizontal" ref={bodyHorizontalRef}>
+          <div className="EditorBodyLeft">
+            <ResizableContainer
+              child={
+                <CameraPropertiesWidget
+                  camera={selectedCamera}
+                  onCameraChange={onSelectedCameraPropertiesChanged}
+                />
+              }
+              width={leftPanelWidth}
+              height={null}
+              onWidthChange={onLeftPanelWidthChange}
+              onHeightChange={null}
+              hasRightHandle={true}
+              hasLeftHandle={false}
+              hasBottomHandle={false}
+              hasTopHandle={false}
+            />
+          </div>
+
+          <div className="EditorBodyVertical" ref={bodyVerticalRef}>
+            <div className="EditorBodyTop">
+              <ResizableContainer
+                child={<p>Top toolbar placeholder</p>}
+                width={null}
+                height={topPanelHeight}
+                onWidthChange={null}
+                onHeightChange={onTopPanelHeightChange}
+                hasRightHandle={false}
+                hasLeftHandle={false}
+                hasBottomHandle={true}
+                hasTopHandle={false}
+              />
+            </div>
+
+            <div className="EditorBodyCenter">
+              <EditorCanvas
+                objectProperties={selectedObjectProperties}
+                camera={selectedCamera}
+                onSelectedObjectChanged={onSelectedObjectChanged}
+                selectedObject={selectedObject}
+                renderMode={selectedRenderMode}
+              />
+            </div>
+
+            <div className="EditorBodyBottom">
+              <ResizableContainer
+                child={<p>Bottom toolbar placeholder</p>}
+                width={null}
+                height={bottomPanelHeight}
+                onWidthChange={null}
+                onHeightChange={onBottomPanelHeightChange}
+                hasRightHandle={false}
+                hasLeftHandle={false}
+                hasBottomHandle={false}
+                hasTopHandle={true}
+              />
+            </div>
+          </div>
+
+          <div className="EditorBodyRight">
+            <ResizableContainer
+              child={editorBodyRightChild}
+              width={rightPanelWidth}
+              height={null}
+              onWidthChange={onRightPanelWidthChange}
+              onHeightChange={null}
+              hasRightHandle={false}
+              hasLeftHandle={true}
+              hasBottomHandle={false}
+              hasTopHandle={false}
+            />
+          </div>
+        </div>
+      </div>
     </div>
+  );
 }

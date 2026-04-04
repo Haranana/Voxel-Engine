@@ -1,6 +1,7 @@
 .ResizableContainer{
     border: 1px solid;
     border-color: cadetblue;
+    overflow: auto;
 }
 
 .ResizableContainerVert{
@@ -16,6 +17,7 @@
     min-width: 0;
     flex-direction: row;
     width: 100%;
+    height: 100%;
 }
 
 .ResizableContainerTop{
