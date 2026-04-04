@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
 import type { ObjectProperties, RenderMode } from "../RenderableObjectTypes";
 import { degreeToRadians } from "../math/utils";
@@ -6,12 +6,11 @@ import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
 import type { VoxelObject } from "../classes/voxelObject";
-import { additionalZShader, baseShader, baseShaderWithWireframe } from "../shaders/baseRenderableObjectShaders";
+import { additionalZShader, baseShaderWithWireframe } from "../shaders/baseRenderableObjectShaders";
 import { Vector3 } from "../math/vector3.type";
 import { getVoxelFromObject } from "../classes/rayCaster";
 import { Vector2 } from "../math/vector2.type";
 import { Vector4 } from "../math/vector4.type";
-import type { Voxel } from "../classes/voxel.type";
 
 export type EditorCanvasProps = {
     objectProperties: ObjectProperties | null;

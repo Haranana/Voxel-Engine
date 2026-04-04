@@ -42,7 +42,7 @@ export default function EditorPage() {
   const leftPanelData: ResizableContainerConsts = useMemo(
     () => ({
       maxWidth: 300,
-      minWidth: 100,
+      minWidth: 150,
       maxHeight: 2000,
       minHeight: 400,
     }),
@@ -52,7 +52,7 @@ export default function EditorPage() {
   const rightPanelData: ResizableContainerConsts = useMemo(
     () => ({
       maxWidth: 300,
-      minWidth: 100,
+      minWidth: 150,
       maxHeight: 2000,
       minHeight: 400,
     }),
@@ -63,8 +63,8 @@ export default function EditorPage() {
     () => ({
       maxWidth: 2000,
       minWidth: 400,
-      maxHeight: 200,
-      minHeight: 100,
+      maxHeight: 50,
+      minHeight: 25,
     }),
     []
   );
@@ -73,16 +73,16 @@ export default function EditorPage() {
     () => ({
       maxWidth: 2000,
       minWidth: 400,
-      maxHeight: 200,
-      minHeight: 100,
+      maxHeight: 50,
+      minHeight: 25,
     }),
     []
   );
 
-  const [leftPanelWidth, setLeftPanelWidth] = useState(250);
-  const [rightPanelWidth, setRightPanelWidth] = useState(250);
-  const [topPanelHeight, setTopPanelHeight] = useState(150);
-  const [bottomPanelHeight, setBottomPanelHeight] = useState(150);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(200);
+  const [rightPanelWidth, setRightPanelWidth] = useState(200);
+  const [topPanelHeight, setTopPanelHeight] = useState(50);
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(50);
 
   const [selectedCamera, setSelectedCamera] = useState<Camera>({
     fovY: 90,
