@@ -64,11 +64,9 @@
 .ContainerTopHandle{
     flex: 1;
     min-width: 0;
-
 }
 
 .ContainerBottomHandle{
-
     flex: 1;
     min-width: 0;
 }

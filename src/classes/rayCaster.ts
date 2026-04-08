@@ -31,7 +31,7 @@ export function getVoxelFromObject(camera: Camera,
     : Vector3 | null{
     
     const mvpInversion = ndcProjectionMatrix.multMatrix(cameraViewMatrix).multMatrix(objectTransformMatrix).getInversion();
-
+    const EPS = 1e-6;
     /*
     const cameraPositionMs = new Vector3(
     ...objectTransformMatrix.getInversion().multVector(
@@ -52,13 +52,12 @@ export function getVoxelFromObject(camera: Camera,
     const voxelSize: number = obj.baseVoxelSize; 
     const ray: Ray = new Ray(rayOrigin, rayDirection);
 
-    /*
+    
     console.log(`
         Origin: ${ray.origin.toString()} |
         Direction: ${ray.direction.toString()} |
         Point pos (model space) : ${pointFarMsPersp.toString()} |
-        Camera pos (model space): ${cameraPositionMs.toString()}
-    `)  */;
+    `)  ;
     
     let currentRayT: number = 0;
     if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
@@ -79,15 +78,33 @@ export function getVoxelFromObject(camera: Camera,
     //assumes that voxelSize > 1 distance unit
     //returns null if sign for this dimension is 0
     const getNextVoxelX = (curX: number, xSign: number) : number | null =>{
+        /*
         return xSign == 0? null : xSign==1? Math.ceil(curX/voxelSize)*voxelSize+voxelSize : Math.floor(curX/voxelSize)*voxelSize-1;
+        */
+       if(xSign==0) return null;
+       const cell = Math.floor(curX/voxelSize);
+       const nextBoundary = xSign > 0? (cell+1)*voxelSize : cell*voxelSize;
+       return nextBoundary;
     }
 
     const getNextVoxelY = (curY: number, ySign: number) : number | null =>{
+        /*
         return ySign == 0? null : ySign==1? Math.ceil(curY/voxelSize)*voxelSize+voxelSize : Math.floor(curY/voxelSize)*voxelSize-1;
+        */
+        if(ySign==0) return null;
+        const cell = Math.floor(curY/voxelSize);
+        const nextBoundary = ySign > 0? (cell+1)*voxelSize : cell*voxelSize;
+        return nextBoundary;
     }
 
     const getNextVoxelZ = (curZ: number, zSign: number) : number | null=>{
+        /*
         return zSign == 0? null : zSign==1? Math.ceil(curZ/voxelSize)*voxelSize+voxelSize : Math.floor(curZ/voxelSize)*voxelSize-1;
+        */
+               if(zSign==0) return null;
+        const cell = Math.floor(curZ/voxelSize);
+        const nextBoundary = zSign > 0? (cell+1)*voxelSize : cell*voxelSize;
+        return nextBoundary;
     }
 
     //returns t for the next instance when ray reaches new cell
@@ -118,7 +135,7 @@ export function getVoxelFromObject(camera: Camera,
         //there shouldn't be any possible way for all signs to be 0 so it's assumed that tForNextVoxels is never empty at this point
         const minT = Math.min(...deltasT);
 
-        /*
+        
         console.log(`[getNextT] finding delta beetwen 2 arguments of ray
             position before = ${curRayValue.toString()} |
             sign = ${sign} |
@@ -126,17 +143,17 @@ export function getVoxelFromObject(camera: Camera,
             next (x,y,z) = (${nextVoxelX},${nextVoxelY},${nextVoxelZ})
             diffs (x,y,z) = (${nextVoxelX as number - curRayValue.x},${nextVoxelY as number - curRayValue.y},${nextVoxelZ as number - curRayValue.z})
             deltaT = (${minT})
-            `)*/
+            `);
 
         return minT;
     }
     
 
     //later it will be modified to calculate only in bounding box
-    //for now just hard stop when reaching far plane 
-    while(ray.get(currentRayT).z > -camera.far){
+    //for now just hard stop when reaching some arbitrary large number 
+    while( Math.abs(ray.get(currentRayT).z) < 10000){
         const deltaT : number = getNextT(ray, currentRayT, sign);
-        currentRayT += deltaT;
+        currentRayT += (deltaT + EPS);
 
         if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
             return obj.pointCoordinatesToVexelId(ray.get(currentRayT));
