@@ -3,11 +3,12 @@ import { Vector3 } from "./math/vector3.type";
 import { Vector4 } from "./math/vector4.type";
 
 export function getBasicSampleVoxelObject(){
-    const out: VoxelObject = new VoxelObject(new Vector3(4,4,4));
+    const out: VoxelObject = new VoxelObject(new Vector3(16,16,16));
+    out.baseVoxelSize = 20;
 
-    for(let x = 0; x < 4; x++){
-        for(let y=0; y<4; y++){
-            for(let z=0; z<4; z++){
+    for(let x = 0; x < 16; x++){
+        for(let y=0; y<16; y++){
+            for(let z=0; z<16; z++){
                 if(x==0 && y==0 && z==0) continue;
                 out.setVoxel(new Vector3(x,y,z), {
                     color: new Vector4(160,230,140,255)

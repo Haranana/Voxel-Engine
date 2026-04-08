@@ -1,0 +1,39 @@
+.MutableNumberField{
+    display: flex;
+    flex-direction: row;
+    margin: 0px;
+
+    min-width: 0;
+}
+
+.MutableNumberFieldValue::-webkit-outer-spin-button,
+.MutableNumberFieldValue::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.MutableNumberFieldValue {
+    appearance: textfield;
+    box-sizing: border-box;
+
+    min-width: 0;
+    flex: 1 1 0;
+    text-align: center;
+    border: none;
+    padding: 0;
+}
+
+.MutableNumberFieldValue:focus {
+  text-align: left;
+}
+
+.MutableNumberFieldButton{
+    border-radius: 0px;
+    border: none;
+    flex: 0 0 auto;
+}
+
+.MutableNumberFieldButton:hover{
+    cursor: pointer;
+}
+
+

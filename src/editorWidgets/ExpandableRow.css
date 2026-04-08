@@ -1,0 +1,71 @@
+.ExpandableRow{
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+    min-height: 0;
+    /*flex: 1;*/
+}
+
+.ExpandableRowTrigger{
+
+    display: flex;
+
+    justify-content: left;
+    margin: 0 20px 0 20px;
+    
+    min-width: 0;
+    min-height: 0;
+    flex: 0 0 auto;
+}
+
+.ExpandableRowTriggerButton{
+    display: flex;
+    flex-direction: row;
+    padding: 0px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+}
+
+.ExpandableRowTriggerButtonIcon{
+    min-width: 25px;
+    aspect-ratio: 1/1;
+    flex: 0 0 0;
+}
+
+.ExpandableRowTriggerButtonText{
+    margin: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.ExpandableRowChildrenWrapper{
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+    margin: 0px 10px 0px 10px;
+}
+
+.ExpandableRowChild{
+  min-width: 0px;
+  min-height: 0px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.ExpandableRowChildSection{
+  min-width: 0px;
+  min-height: 0px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../src/Editor.css";
 import EditorCanvas from "./editorWidgets/EditorCanvas";
-import RenderableObjectProperties from "./editorWidgets/RenderableObjectProperties";
 import { type RenderMode, type ObjectProperties } from "./RenderableObjectTypes";
 import { Vector3 } from "./math/vector3.type";
 import type { Camera } from "./classes/camera";
@@ -11,6 +10,7 @@ import { getBasicSampleVoxelObject } from "./sampleObjects";
 import ResizableContainer, {
   type ResizableContainerConsts,
 } from "./editorWidgets/ResizableContainer";
+import ObjectPropertiesWidget from "./editorWidgets/ObjectPropertiesWidget";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -18,7 +18,7 @@ function clamp(value: number, min: number, max: number) {
 
 export default function EditorPage() {
   const [selectedObjectProperties, setSelectedObjectProperties] =
-    useState<ObjectProperties | null>({
+    useState<ObjectProperties>({
       translation: new Vector3(0, 0, -500),
       scale: new Vector3(1, 1, 1),
       rotation: new Vector3(0, 0, 0),
@@ -27,8 +27,9 @@ export default function EditorPage() {
   const [selectedObject, setSelectedObject] = useState<VoxelObject>(
     getBasicSampleVoxelObject()
   );
-  const [selectedRenderMode, setSelectedRenderMode] =
+  const [selectedRenderMode, _] =
     useState<RenderMode>("TriangleWireframe");
+
 
   const bodyHorizontalRef = useRef<HTMLDivElement | null>(null);
   const bodyVerticalRef = useRef<HTMLDivElement | null>(null);
@@ -260,21 +261,21 @@ export default function EditorPage() {
     setSelectedObject(newObject);
   };
 
-  const onSelectedObjectPropertiesChanged = (newProp: ObjectProperties) => {
-    setSelectedObjectProperties(newProp);
-  };
-
-  const onSelectedCameraPropertiesChanged = (newCamera: Camera) => {
-    setSelectedCamera(newCamera);
-  };
-
-  const editorBodyRightChild =
-    selectedObjectProperties != null ? (
-      <RenderableObjectProperties
-        objectProperties={selectedObjectProperties}
-        onPropertiesChange={onSelectedObjectPropertiesChanged}
-      />
-    ) : null;
+  const [isTransformObjectPropertiesOpen, setIsTransformObjectPropertiesOpen] = useState<boolean>(false);
+const objectPropertiesWidget = <ObjectPropertiesWidget
+    objectProperties={selectedObjectProperties}
+    onPropertiesChange={setSelectedObjectProperties}
+    isOpen={isTransformObjectPropertiesOpen}
+    onOpenChange={setIsTransformObjectPropertiesOpen}
+/>
+  
+  const [isCameraPropertiesWidgetOpen, setIsCameraPropertiesWidgetOpen] = useState<boolean>(false);
+  const cameraPropertiesWidget : React.ReactNode = <CameraPropertiesWidget
+    camera={selectedCamera}
+    onCameraChange={setSelectedCamera}
+    isOpen={isCameraPropertiesWidgetOpen}
+    onOpenChange={setIsCameraPropertiesWidgetOpen}
+/>
 
   return (
     <div className="EditorPage">
@@ -284,11 +285,8 @@ export default function EditorPage() {
         <div className="EditorBodyHorizontal" ref={bodyHorizontalRef}>
           <div className="EditorBodyLeft">
             <ResizableContainer
-              child={
-                <CameraPropertiesWidget
-                  camera={selectedCamera}
-                  onCameraChange={onSelectedCameraPropertiesChanged}
-                />
+              children={
+                null
               }
               width={leftPanelWidth}
               height={null}
@@ -304,7 +302,7 @@ export default function EditorPage() {
           <div className="EditorBodyVertical" ref={bodyVerticalRef}>
             <div className="EditorBodyTop">
               <ResizableContainer
-                child={<p>Top toolbar placeholder</p>}
+                children={<p>Top toolbar placeholder</p>}
                 width={null}
                 height={topPanelHeight}
                 onWidthChange={null}
@@ -328,7 +326,7 @@ export default function EditorPage() {
 
             <div className="EditorBodyBottom">
               <ResizableContainer
-                child={<p>Bottom toolbar placeholder</p>}
+                children={<p>Bottom toolbar placeholder</p>}
                 width={null}
                 height={bottomPanelHeight}
                 onWidthChange={null}
@@ -343,7 +341,6 @@ export default function EditorPage() {
 
           <div className="EditorBodyRight">
             <ResizableContainer
-              child={editorBodyRightChild}
               width={rightPanelWidth}
               height={null}
               onWidthChange={onRightPanelWidthChange}
@@ -352,7 +349,12 @@ export default function EditorPage() {
               hasLeftHandle={true}
               hasBottomHandle={false}
               hasTopHandle={false}
-            />
+            >
+              <div className="ResizableContainerChildWrapper">
+              {objectPropertiesWidget}
+              {cameraPropertiesWidget}
+              </div>
+            </ResizableContainer>
           </div>
         </div>
       </div>

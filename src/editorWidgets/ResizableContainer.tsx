@@ -9,7 +9,7 @@ export type ResizableContainerConsts = {
 };
 
 export type ResizableContainerProps = {
-  child: React.ReactNode | null;
+  children: React.ReactNode | null;
 
   width: number | null;
   height: number | null;
@@ -160,7 +160,7 @@ export default function ResizableContainer(props: ResizableContainerProps) {
             />
           ) : null}
 
-          <div className="ResizableContainerChildWrapper">{props.child}</div>
+          {props.children}
 
           {props.hasRightHandle ? (
             <div

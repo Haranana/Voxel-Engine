@@ -109,3 +109,33 @@
   overflow: hidden;
   display: flex;
 }
+
+.TransformPropertiesRow{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 100%;
+  min-width: 0px;
+  min-height: 0px;
+  flex: 1;
+}
+
+.TransformProperties{
+  min-width: 0px;
+  min-height: 0px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.PropertiesRow{
+  display: flex;
+  flex-direction: row;
+  justify-content: left;
+  margin: 10px 0px 10px 0px;
+}
+
+.PropertiesRow .MutableFieldTitle{
+  margin: 0px 7px 0px 7px;
+  width: 25%;
+}
