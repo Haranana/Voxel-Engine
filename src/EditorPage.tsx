@@ -11,10 +11,26 @@ import ResizableContainer, {
   type ResizableContainerConsts,
 } from "./editorWidgets/ResizableContainer";
 import ObjectPropertiesWidget from "./editorWidgets/ObjectPropertiesWidget";
+import { ActionButtonsPanel, type ActionButtonData } from "./editorWidgets/ActionButtonsPanel";
+import { ExpandableRow } from "./editorWidgets/ExpandableRow";
+import { EditToolsWidget } from "./editorWidgets/EditToolsWidget";
+import { SelectToolsWidget } from "./editorWidgets/SelectToolsWidget";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
+
+type SelectionType = 
+| "Voxel"
+| "Cube"
+| "Face"
+
+type SelectedAction = 
+| "Add"
+| "Paint"
+| "Remove"
+| "Move"
+| "None"
 
 export default function EditorPage() {
   const [selectedObjectProperties, setSelectedObjectProperties] =
@@ -277,6 +293,82 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
     onOpenChange={setIsCameraPropertiesWidgetOpen}
 />
 
+  const [currentSelectionType , setCurrentSelectionType] = useState<SelectionType>("Voxel");
+  const [isSelectToolsWidgetOpen, setIsSelectToolsWidgetOpen] = useState<boolean>(false);
+  const selectToolsButton : ActionButtonData[] = [
+    {
+      id: "voxelSelectButton",
+      label: "voxel",
+      onClick: () => {setCurrentSelectionType("Voxel")},
+      disabled: currentSelectionType==="Voxel",
+    },
+    {
+      id: "cubeSelectButton",
+      label: "cube",
+      onClick: () => {setCurrentSelectionType("Cube")},
+      disabled: currentSelectionType==="Cube",
+    },
+    {
+      id: "faceSelectButton",
+      label: "face",
+      onClick: () => {setCurrentSelectionType("Face")},
+      disabled: currentSelectionType==="Face",
+    },
+  ];
+  const selectToolsButtons : React.ReactNode = <ActionButtonsPanel
+    buttons={selectToolsButton}
+  />
+  const selectToolsWidget : React.ReactNode = <SelectToolsWidget
+    buttonPanel = {selectToolsButtons}
+    isOpen = {isSelectToolsWidgetOpen}
+    onOpenChange={setIsSelectToolsWidgetOpen}
+  />
+
+
+  const [currentEditType, setCurrentEditType] = useState<SelectedAction>("Add");
+  const [isEditToolsWidgetOpen, setIsEditToolsWidgetOpen] = useState<boolean>(false);
+  const editToolsButton : ActionButtonData[] = [
+    {
+      id: "AddEditButton",
+      label: "add",
+      onClick: () => {setCurrentEditType("Add")},
+      disabled: currentEditType==="Add",
+    },
+    {
+      id: "RemoveEditButton",
+      label: "remove",
+      onClick: () => {setCurrentEditType("Remove")},
+      disabled: currentEditType==="Remove",
+    },
+    {
+      id: "PaintEditButton",
+      label: "paint",
+      onClick: () => {setCurrentEditType("Paint")},
+      disabled: currentEditType==="Paint",
+    },
+    {
+      id: "MoveEditButton",
+      label: "move",
+      onClick: () => {setCurrentEditType("Move")},
+      disabled: currentEditType==="Move",
+    },
+    {
+      id: "NoneEditButton",
+      label: "None",
+      onClick: () => {setCurrentEditType("None")},
+      disabled: currentEditType==="None",
+    },
+  ];
+  const editToolsButtons : React.ReactNode = <ActionButtonsPanel
+    buttons={editToolsButton}
+  />
+  const editToolsWidget : React.ReactNode = <EditToolsWidget
+    buttonPanel = {editToolsButtons}
+    isOpen = {isEditToolsWidgetOpen}
+    onOpenChange={setIsEditToolsWidgetOpen}
+  />
+  
+  
   return (
     <div className="EditorPage">
       <div className="EditorNav"></div>
@@ -353,6 +445,8 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
               <div className="ResizableContainerChildWrapper">
               {objectPropertiesWidget}
               {cameraPropertiesWidget}
+              {selectToolsWidget}
+              {editToolsWidget}
               </div>
             </ResizableContainer>
           </div>
