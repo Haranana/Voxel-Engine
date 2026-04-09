@@ -52,12 +52,12 @@ export function getVoxelFromObject(camera: Camera,
     const voxelSize: number = obj.baseVoxelSize; 
     const ray: Ray = new Ray(rayOrigin, rayDirection);
 
-    
+    /*
     console.log(`
         Origin: ${ray.origin.toString()} |
         Direction: ${ray.direction.toString()} |
         Point pos (model space) : ${pointFarMsPersp.toString()} |
-    `)  ;
+    `)  ;*/
     
     let currentRayT: number = 0;
     if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
@@ -135,7 +135,7 @@ export function getVoxelFromObject(camera: Camera,
         //there shouldn't be any possible way for all signs to be 0 so it's assumed that tForNextVoxels is never empty at this point
         const minT = Math.min(...deltasT);
 
-        
+        /*
         console.log(`[getNextT] finding delta beetwen 2 arguments of ray
             position before = ${curRayValue.toString()} |
             sign = ${sign} |
@@ -144,7 +144,7 @@ export function getVoxelFromObject(camera: Camera,
             diffs (x,y,z) = (${nextVoxelX as number - curRayValue.x},${nextVoxelY as number - curRayValue.y},${nextVoxelZ as number - curRayValue.z})
             deltaT = (${minT})
             `);
-
+        */
         return minT;
     }
     

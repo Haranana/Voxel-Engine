@@ -74,6 +74,11 @@ export class Vector3 {
         return `(${this.x}, ${this.y}, ${this.z})`;
     }
 
+    static fromString(v: string){
+        const [x, y, z] = v.split(",").map(Number);
+        return new Vector3(x, y, z);
+    }
+
     toArray3(): [number, number, number] {
         return [this.x, this.y, this.z];
     }

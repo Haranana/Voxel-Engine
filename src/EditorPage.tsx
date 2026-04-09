@@ -20,12 +20,12 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-type SelectionType = 
+export type SelectMode = 
 | "Voxel"
 | "Cube"
 | "Face"
 
-type SelectedAction = 
+export type EditMode = 
 | "Add"
 | "Paint"
 | "Remove"
@@ -293,7 +293,7 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
     onOpenChange={setIsCameraPropertiesWidgetOpen}
 />
 
-  const [currentSelectionType , setCurrentSelectionType] = useState<SelectionType>("Voxel");
+  const [currentSelectionType , setCurrentSelectionType] = useState<SelectMode>("Voxel");
   const [isSelectToolsWidgetOpen, setIsSelectToolsWidgetOpen] = useState<boolean>(false);
   const selectToolsButton : ActionButtonData[] = [
     {
@@ -325,7 +325,7 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
   />
 
 
-  const [currentEditType, setCurrentEditType] = useState<SelectedAction>("Add");
+  const [currentEditType, setCurrentEditType] = useState<EditMode>("Add");
   const [isEditToolsWidgetOpen, setIsEditToolsWidgetOpen] = useState<boolean>(false);
   const editToolsButton : ActionButtonData[] = [
     {
@@ -413,6 +413,8 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
                 onSelectedObjectChanged={onSelectedObjectChanged}
                 selectedObject={selectedObject}
                 renderMode={selectedRenderMode}
+                selectMode={currentSelectionType}
+                editMode={currentEditType}
               />
             </div>
 
