@@ -4,7 +4,7 @@ import type { Vector2 } from "../math/vector2.type";
 import { Vector3 } from "../math/vector3.type";
 import { Vector4 } from "../math/vector4.type";
 import type { Camera } from "./camera";
-import type { VoxelObject } from "./voxelObject";
+import type { FaceDirection, VoxelObject } from "./voxelObject";
 
 class Ray{
     direction: Vector3;
@@ -28,7 +28,7 @@ export function getVoxelFromObject(camera: Camera,
                             objectTransformMatrix: Matrix4,  
                             ndcProjectionMatrix: Matrix4, 
                             cameraViewMatrix: Matrix4)
-    : Vector3 | null{
+    : {voxelCoords: Vector3, hitDirection: FaceDirection} | null {
     
     const mvpInversion = ndcProjectionMatrix.multMatrix(cameraViewMatrix).multMatrix(objectTransformMatrix).getInversion();
     const EPS = 1e-6;
@@ -61,7 +61,7 @@ export function getVoxelFromObject(camera: Camera,
     
     let currentRayT: number = 0;
     if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
-        return obj.pointCoordinatesToVexelId(ray.get(currentRayT));
+        return {voxelCoords: obj.pointCoordinatesToVexelId(ray.get(currentRayT)) , hitDirection: "PosX"};
     }
 
     const xSign : number = ray.direction.x == 0? 0 : ray.direction.x < 0? -1 : 1;
@@ -108,32 +108,64 @@ export function getVoxelFromObject(camera: Camera,
     }
 
     //returns t for the next instance when ray reaches new cell
-    const getNextT = (ray: Ray, t: number, sign : Vector3)=>{
+    const getNextT = (ray: Ray, t: number, sign : Vector3) : {minDelta: number, dir: FaceDirection}=>{
         const curRayValue = ray.get(t)
         const nextVoxelX : number | null = getNextVoxelX(curRayValue.x , sign.x);
         const nextVoxelY : number | null = getNextVoxelY(curRayValue.y, sign.y);
         const nextVoxelZ: number | null = getNextVoxelZ(curRayValue.z , sign.z);
 
             
-        const deltasT : number[] = [];
+        //const deltasT : number[] = [];
+        let smallestDelta: number | null = null;
+        let hitDimension : "X" | "Y" | "Z"  = "X";
         if(nextVoxelX!=null){
             const diff = nextVoxelX - curRayValue.x;
             const deltaT = diff/rayDirection.x;
-            deltasT.push(deltaT)
+            if(smallestDelta == null || smallestDelta > deltaT){
+                smallestDelta = deltaT;
+                hitDimension = "X";
+            }                        
         }
         if(nextVoxelY!=null){
             const diff = nextVoxelY - curRayValue.y;
             const deltaT = diff/rayDirection.y;
-            deltasT.push(deltaT)
+            if(smallestDelta == null || smallestDelta > deltaT) {
+                smallestDelta = deltaT;
+                hitDimension = "Y";
+            }            
         }
         if(nextVoxelZ!=null){
             const diff = nextVoxelZ - curRayValue.z;
             const deltaT = diff/rayDirection.z;
-            deltasT.push(deltaT)
+            if(smallestDelta == null || smallestDelta > deltaT){
+                smallestDelta = deltaT;                
+                hitDimension = "Z";
+            } 
         }        
         
+        let dir : FaceDirection;
+        if(hitDimension === "X"){
+            if(sign.x > 0){
+                dir = "NegX";
+            }else{
+                dir = "PosX";
+            }
+        }else if(hitDimension === "Y"){
+            if(sign.y > 0){
+                dir = "NegY";
+            }else{
+                dir = "PosY";
+            }
+        }else{
+            if(sign.z > 0){
+                dir = "NegZ";
+            }else{
+                dir = "PosZ";
+            }
+        }
+        
         //there shouldn't be any possible way for all signs to be 0 so it's assumed that tForNextVoxels is never empty at this point
-        const minT = Math.min(...deltasT);
+        //const minT = Math.min(...deltasT);
 
         /*
         console.log(`[getNextT] finding delta beetwen 2 arguments of ray
@@ -145,18 +177,18 @@ export function getVoxelFromObject(camera: Camera,
             deltaT = (${minT})
             `);
         */
-        return minT;
+        return {minDelta: smallestDelta!, dir};
     }
     
 
     //later it will be modified to calculate only in bounding box
     //for now just hard stop when reaching some arbitrary large number 
     while( Math.abs(ray.get(currentRayT).z) < 10000){
-        const deltaT : number = getNextT(ray, currentRayT, sign);
-        currentRayT += (deltaT + EPS);
+        const nextVoxelBoundary  = getNextT(ray, currentRayT, sign);
+        currentRayT += (nextVoxelBoundary.minDelta + EPS);
 
         if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
-            return obj.pointCoordinatesToVexelId(ray.get(currentRayT));
+            return {voxelCoords: obj.pointCoordinatesToVexelId(ray.get(currentRayT)), hitDirection:  nextVoxelBoundary.dir};
         }
     }
 

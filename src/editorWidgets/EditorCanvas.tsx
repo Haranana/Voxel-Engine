@@ -5,7 +5,7 @@ import { degreeToRadians } from "../math/utils";
 import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
-import type { VoxelObject } from "../classes/voxelObject";
+import type { FaceDirection, VoxelObject } from "../classes/voxelObject";
 import { additionalZShader, baseShaderWithWireframe } from "../shaders/baseRenderableObjectShaders";
 import { Vector3 } from "../math/vector3.type";
 import { getVoxelFromObject } from "../classes/rayCaster";
@@ -139,11 +139,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height);
         const cameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion();
 
-        const rayCastingResult : Vector3 | null = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
-        if(rayCastingResult){
-            console.log(`clicked on voxel: ${rayCastingResult.toString()}`);
-        }
-
+        const rayResults = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
+        const rayCastingResult : Vector3 | null = rayResults? rayResults.voxelCoords : null;
         if(rayCastingResult){
             props.selectedObject.setVoxel(rayCastingResult, {color: new Vector4(160, 130, 210, 255),});
             props.onSelectedObjectChanged(props.selectedObject.copy());
@@ -151,7 +148,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     }
 
     function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>){
-        console.log(`[handlePointerUp] !!!!!!!!!!`);
         if(!canvasRef.current) return; 
         const canvas = canvasRef.current;
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
@@ -168,8 +164,9 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height);
         const cameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion();
 
-        const rayCastingResult : Vector3 | null = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
-
+        const rayResults = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
+        const rayCastingResult : Vector3 | null = rayResults? rayResults.voxelCoords : null;
+        
         if(rayCastingResult){
             props.selectedObject.highlightVoxel(rayCastingResult);
             if(selectSessionRef.current.startCoords!=null){
@@ -177,12 +174,12 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 if(props.selectMode == "Voxel"){
                     props.selectedObject.selectVoxel(selectSessionRef.current.startCoords);
                 }else if(props.selectMode=="Face"){
-                    props.selectedObject.selectFace(selectSessionRef.current.startCoords,"PosZ"); //hard-coded direction! TODO fix
-                }else if(props.selectMode=="Cube"){
-                    props.selectedObject.selectCube(selectSessionRef.current.startCoords, selectSessionRef.current.endCoords);
+                    const rayCastingDir: FaceDirection = rayResults!.hitDirection;
+                    console.log(`[handlePointerUp] rayCastingDir: ${rayCastingDir}`)
+                    props.selectedObject.selectFace(selectSessionRef.current.startCoords, rayCastingDir); 
+                    //props.selectedObject.selectCube(selectSessionRef.current.startCoords, selectSessionRef.current.endCoords);
                 }
             }
-            
             props.onSelectedObjectChanged(props.selectedObject.copy());
         }
         
@@ -190,7 +187,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     }
 
     function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>){
-        console.log(`[handlePointerDown] !!!!!!!`);
         if(!canvasRef.current) return; 
         const canvas = canvasRef.current;
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
@@ -207,8 +203,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height);
         const cameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion();
 
-        const rayCastingResult : Vector3 | null = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
-    
+        const rayResults = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
+        const rayCastingResult : Vector3 | null = rayResults? rayResults.voxelCoords : null;
         selectSessionRef.current = {startCoords: null, endCoords: null}
         if(rayCastingResult){
            selectSessionRef.current.startCoords = rayCastingResult;
@@ -245,7 +241,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height);
         const cameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion();
 
-        const rayCastingResult : Vector3 | null = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
+        const rayResults = getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
+        const rayCastingResult : Vector3 | null = rayResults? rayResults.voxelCoords : null;
 
         if(rayCastingResult){
             const highlightCausedChange = props.selectedObject.highlightVoxel(rayCastingResult);

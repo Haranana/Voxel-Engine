@@ -355,11 +355,16 @@ export class VoxelObject{
     selectFace(v: Vector3, dir: FaceDirection): boolean{
         console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
         if(!this.voxelExists(v)) {
+            
             return false;
         }
         this.resetSelect();
         this.#selectFaceRecursion(v, dir);
         this.voxelsModified = true;
+        console.log(`[selectFace] voxels of given face selected, length: ${this.selectedVoxels.size}`)
+        this.selectedVoxels.forEach((v)=>{
+            console.log(v);
+        })
         return true;
     }
 
@@ -407,11 +412,14 @@ export class VoxelObject{
     }
 
     #selectFaceRecursion(v: Vector3, dir: FaceDirection){
-        if(this.selectedVoxels.has(v.toString())) return;
+        console.log(`[selectFaceRecursion] iteration: ${v} -`)
+        if(!this.voxelExists(v) || this.isVoxelEmpty(v) || this.selectedVoxels.has(v.toString())) return;
+        console.log(`[selectFaceRecursion] iteration: ${v} +`)
         
         const possiblyBlockingVoxelCoords = this.#blockingVoxelCoords(v , dir);
         const isCurrentVoxelOnSurface = this.isVoxelEmpty(possiblyBlockingVoxelCoords) || !this.voxelExists(possiblyBlockingVoxelCoords);
-        if(isCurrentVoxelOnSurface) return;
+        console.log(`isCurrentVoxelOnSurface: ${isCurrentVoxelOnSurface } | for blocking voxel: ${possiblyBlockingVoxelCoords}`)
+        if(!isCurrentVoxelOnSurface) return;
         this.selectedVoxels.add(v.toString());
 
         this.#voxelNeighborsCoords(v, dir).forEach((vs)=>{
@@ -439,7 +447,7 @@ export class VoxelObject{
         const correctedVStart = vStart;
         const correctedVEnd = clampedEnd;
         */
-       
+
         for(let x: number = correctedVStart.x; x <= correctedVEnd.x; x++){
             for(let y: number = correctedVStart.y; y <= correctedVEnd.y; y++){
                 for(let z: number = correctedVStart.z; z <= correctedVEnd.z; z++){
