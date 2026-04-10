@@ -179,7 +179,15 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                     props.selectedObject.selectFace(selectSessionRef.current.startCoords, rayCastingDir); 
                     //props.selectedObject.selectCube(selectSessionRef.current.startCoords, selectSessionRef.current.endCoords);
                 }
+
+                if(props.editMode=="Remove"){
+                    props.selectedObject.removeSelectedVoxels();
+                }
+                else if(props.editMode=="Paint"){
+                    props.selectedObject.paintSelectedVoxels(props.selectedObject.selectedVoxelColor);
+                }
             }
+            props.selectedObject.resetSelect();
             props.onSelectedObjectChanged(props.selectedObject.copy());
         }
         

@@ -75,7 +75,7 @@ export class Vector3 {
     }
 
     static fromString(v: string){
-        const [x, y, z] = v.split(",").map(Number);
+        const [x, y, z] = v.replace("(","").replace(")","").split(",").map(Number);
         return new Vector3(x, y, z);
     }
 

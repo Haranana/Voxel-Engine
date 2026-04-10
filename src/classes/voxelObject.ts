@@ -306,6 +306,16 @@ export class VoxelObject{
         }
     }
 
+    removeVoxel(pos: Vector3){
+        try{
+            this.voxels[pos.x][pos.y][pos.z] = null;
+            this.voxelsModified = true;
+            return true;
+        }catch(e: any){
+            return false;
+        }
+    }
+
     highlightVoxel(pos: Vector3): boolean{
         if(this.highlightedVoxel != null && this.highlightedVoxel.equals(pos)) {
             return false;
@@ -459,6 +469,22 @@ export class VoxelObject{
         return true;
     }
 
+    removeSelectedVoxels() : void{
+        this.selectedVoxels.forEach(v=>{
+            const voxel = Vector3.fromString(v);
+            console.log(`[removeSelectedVoxels] removing ${voxel}`);
+            this.removeVoxel(voxel);
+        });
+    }
+
+    paintSelectedVoxels(newColor: Vector4) : void{
+        this.selectedVoxels.forEach(v=>{
+            const voxel = Vector3.fromString(v);
+            this.setVoxel(voxel, {color: newColor});
+        });
+    }
+
+    
     //receives point in this object model space
     //return copy of voxel in those coordinates or null if there's none
     getVoxelFromModelSpacePoint(v: Vector3) : Voxel | null{
