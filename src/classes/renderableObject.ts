@@ -44,7 +44,7 @@ export class RenderableObject{
             vertexData.set([this.vertices[i].quadUV.x , this.vertices[i].quadUV.y], i * vertexDataElements + 4);
             const color = this.vertices[i].color;
             colorData.set([color.x, color.y, color.z], i * vertexDataElements * 4 + 12);  
-            colorData[i * vertexDataElements * 4 + 15] = 255;       
+            colorData[i * vertexDataElements * 4 + 15] = color.w;       
         }
         
         return {
