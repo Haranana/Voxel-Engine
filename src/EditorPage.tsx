@@ -37,7 +37,7 @@ export default function EditorPage() {
     useState<ObjectProperties>({
       translation: new Vector3(0, 0, -500),
       scale: new Vector3(1, 1, 1),
-      rotation: new Vector3(0, 0, 0),
+      rotation: new Vector3(45, 40, 0),
     });
 
   const [selectedObject, setSelectedObject] = useState<VoxelObject>(

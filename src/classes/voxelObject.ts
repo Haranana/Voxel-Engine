@@ -13,6 +13,39 @@ export type FaceDirection =
 | "PosZ"
 | "NegZ"
 
+export function faceDirectionToVector(dir: FaceDirection){
+    switch(dir){
+        case "PosX":
+            return new Vector3(1,0,0);
+        case "NegX":
+            return new Vector3(-1,0,0);
+        case "PosY":
+            return new Vector3(0,1,0);
+        case "NegY":
+            return new Vector3(0,-1,0);
+        case "PosZ":
+            return new Vector3(0,0,1);
+        case "NegZ":
+            return new Vector3(0,0,-1);
+    }
+}
+
+export function vectorToFaceDirection(v: Vector3){
+    if(v.equals(new Vector3(1,0,0))){
+        return "PosX";
+    }else if(v.equals(new Vector3(-1,0,0))){
+        return "NegX";
+    }else if(v.equals(new Vector3(0,1,0))){
+        return "PosY";
+    }else if(v.equals(new Vector3(0,1,0))){
+        return "NegY";
+    }else if(v.equals(new Vector3(0,0,1))){
+        return "PosZ";
+    }else{
+        return "NegZ";
+    }
+}
+
 //(0,0,0) of model space should be middle of the object
 //for now without any chunk system or any other kind of optimization
 //any cell inside VoxelObject may have object of type Voxel or be null
@@ -458,7 +491,6 @@ export class VoxelObject{
         this.voxelsModified = false;
     }
 
-
     //receives point in this object model space
     //returns id of possible vexel in this object
     //whether any voxel exists under this id is unkown
@@ -536,19 +568,22 @@ export class VoxelObject{
         }
     }
 
+    //clear set of selected voxels
+    //returns size of selected voxels set before clearing
     resetSelect(){
-        if(this.selectedVoxels.size>0){
+        const clearedVoxels = this.selectedVoxels.size;
+        if(clearedVoxels>0){
             this.selectedVoxels.clear();
-            this.voxelsModified = true;
+            this.selectedAreaModified = true;
         }
-        this.selectedAreaModified = true;
+        return clearedVoxels;
     }
 
     //adds voxel of given coordinates to set of selected voxels
     //returns true if successfuly added or if voxel was already selected
     //returns false if voxel doesn't exist
     selectVoxel(v: Vector3): boolean{
-        console.log(`[selectVoxel] select request for ${v.toString()}`)
+        //console.log(`[selectVoxel] select request for ${v.toString()}`)
         if(this.voxelExists(v)){
             this.resetSelect();
             this.selectedVoxels.add(v.toString());
@@ -561,16 +596,18 @@ export class VoxelObject{
         }
     }
 
+
     //adds voxels of the same face as starting voxel of given coordinates
+    //emptyVoxels = true : selects only empty voxels, otherwise only non-empty
     //returns true if successfuly added or if all voxels were already selected
     //returns false if starting voxel doesn't exist
-    selectFace(v: Vector3, dir: FaceDirection): boolean{
+    selectFace(v: Vector3, dir: FaceDirection, emptyVoxels: boolean = false): boolean{
         console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
         if(!this.voxelExists(v)) {
             return false;
         }
         this.resetSelect();
-        this.#selectFaceRecursion(v, dir);
+        this.#selectFaceRecursion(v, dir, emptyVoxels);
         this.voxelsModified = true;
         this.selectedAreaModified = true;
         console.log(`[selectFace] voxels of given face selected, length: ${this.selectedVoxels.size}`)
@@ -579,7 +616,6 @@ export class VoxelObject{
         })
         return true;
     }
-
 
     #blockingVoxelCoords(v: Vector3, dir: FaceDirection): Vector3{
         switch(dir){
@@ -623,26 +659,29 @@ export class VoxelObject{
         }
     }
 
-    #selectFaceRecursion(v: Vector3, dir: FaceDirection){
+    #selectFaceRecursion(v: Vector3, dir: FaceDirection, emptyVoxels: boolean){
         console.log(`[selectFaceRecursion] iteration: ${v} -`)
-        if(!this.voxelExists(v) || this.isVoxelEmpty(v) || this.selectedVoxels.has(v.toString())) return;
+        const possiblyBlockingVoxelCoords = this.#blockingVoxelCoords(v , dir);
+        const shouldSkipThisVoxel = emptyVoxels? !this.voxelExists(possiblyBlockingVoxelCoords) || this.isVoxelEmpty(v) || this.selectedVoxels.has(possiblyBlockingVoxelCoords.toString())
+        : !this.voxelExists(v) || this.isVoxelEmpty(v) || this.selectedVoxels.has(v.toString());
+
+        if(shouldSkipThisVoxel) return;
         console.log(`[selectFaceRecursion] iteration: ${v} +`)
         
-        const possiblyBlockingVoxelCoords = this.#blockingVoxelCoords(v , dir);
         const isCurrentVoxelOnSurface = this.isVoxelEmpty(possiblyBlockingVoxelCoords) || !this.voxelExists(possiblyBlockingVoxelCoords);
         console.log(`isCurrentVoxelOnSurface: ${isCurrentVoxelOnSurface } | for blocking voxel: ${possiblyBlockingVoxelCoords}`)
         if(!isCurrentVoxelOnSurface) return;
-        this.selectedVoxels.add(v.toString());
+
+        const selectedVoxel = emptyVoxels? possiblyBlockingVoxelCoords : v;
+        this.selectedVoxels.add(selectedVoxel.toString());
 
         this.#voxelNeighborsCoords(v, dir).forEach((vs)=>{
-            this.#selectFaceRecursion(vs, dir);
+            this.#selectFaceRecursion(vs, dir, emptyVoxels);
         });
     }
 
     selectCube(vStart: Vector3, vEnd: Vector3): boolean{
-        //console.log(`[selectCube] select cube for ${vStart.toString()} : ${vEnd.toString()}`)
         if(!this.voxelExists(vStart)) return false;
-        //console.log(`[voxelObject-selectCube] vStart: ${vStart} , vEnd: ${vEnd}`)
         this.resetSelect();
         this.selectedAreaModified = true;
         const clampedEnd = new Vector3(clamp({value: vEnd.x, min: 0 ,max: this.size.x-1 }), 
@@ -672,22 +711,44 @@ export class VoxelObject{
         return true;
     }
 
-    removeSelectedVoxels() : void{
+    //adds voxel to every coord stored in selectedVoxels if the voxel they point at is empty
+    //returns number of added voxels
+    addSelectedVoxels(color: Vector4) : number{
+        let addedVoxels: number = 0;
         this.selectedVoxels.forEach(v=>{
             const voxel = Vector3.fromString(v);
-            console.log(`[removeSelectedVoxels] removing ${voxel}`);
-            this.removeVoxel(voxel);
-        });
+            if(this.isVoxelEmpty(voxel)){
+                this.setVoxel(voxel, {color});
+                addedVoxels++;
+            }
+        });     
+        return addedVoxels;
     }
 
-    paintSelectedVoxels(newColor: Vector4) : void{
+    //nulls every voxel which id is stored in selectedVoxels
+    //returns number of nulled voxels which were prevoiusly non-empty
+    removeSelectedVoxels() : number{
+        let removedVoxels: number = 0;
+        this.selectedVoxels.forEach(v=>{
+            const voxel = Vector3.fromString(v);
+            this.removeVoxel(voxel);
+            removedVoxels++;
+        });
+        return removedVoxels;
+    }
+
+    //changes color of every non-empty voxel which id is stored in selectedVoxels
+    //returns number of modified voxels
+    paintSelectedVoxels(newColor: Vector4) : number{
+        let modifiedVoxels: number = 0;
         this.selectedVoxels.forEach(v=>{
             const voxel = Vector3.fromString(v);
             this.setVoxel(voxel, {color: newColor});
+            modifiedVoxels++;
         });
+        return modifiedVoxels;
     }
 
-    
     //receives point in this object model space
     //return copy of voxel in those coordinates or null if there's none
     getVoxelFromModelSpacePoint(v: Vector3) : Voxel | null{
