@@ -82,16 +82,23 @@ export function baseShaderWithWireframe(){
                 return out;
             }
         
-            @fragment fn fragmentShader(vnOut: VertexShaderOutput) -> @location(0) vec4f {
-                let baseOutColor = vnOut.color;
-                let uv = vnOut.quadUV;
-                let wireframeColor = vec4f(0.25, 0.25, 0.25, 1);
-                if(fequal(uv.x, 0.0) || fequal(uv.x, 1.0) || fequal(uv.y,0.0) || fequal(uv.y,1.0)) {
-                    return wireframeColor;
-                }
-                else {
-                    return baseOutColor;
-                }
+            @fragment fn fragmentShader(v: VertexShaderOutput) -> @location(0) vec4f {
+    let baseColor = v.color;
+    let wireColor = vec4f(0.35, 0.35, 0.35, 1.0);
+
+    let dx = min(v.quadUV.x, 1.0 - v.quadUV.x);
+    let dy = min(v.quadUV.y, 1.0 - v.quadUV.y);
+    let distToEdge = min(dx, dy);
+
+    let pixelSpan = 0.5*fwidth(distToEdge);
+
+    let widthPx = 0.5;
+
+    let wire = 1.0 - smoothstep(widthPx * pixelSpan,
+                                (widthPx + 1.0) * pixelSpan,
+                                distToEdge);
+
+    return mix(baseColor, wireColor, wire);
             }
     `
 }
