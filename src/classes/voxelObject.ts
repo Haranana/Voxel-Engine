@@ -293,7 +293,7 @@ export class VoxelObject{
         const voxelVertices : Map<string, Vector3> = new Map();
         let currentVoxelId: number = 0;
         
-        const borderOffset = 0.5;
+        const borderOffset = 0.1;
         voxelVertices.set("A" , objectStart.addVector(new Vector3(0,0,this.baseVoxelSize*this.size.z)
         .addVector(new Vector3(-borderOffset, -borderOffset, borderOffset))));
         voxelVertices.set( "B" , objectStart.addVector(new Vector3(this.baseVoxelSize*this.size.x,0,this.baseVoxelSize*this.size.z)
@@ -921,9 +921,11 @@ export class VoxelObject{
     paintSelectedVoxels(newColor: Vector4) : number{
         let modifiedVoxels: number = 0;
         this.selectedVoxels.forEach(v=>{
-            const voxel = Vector3.fromString(v);
-            this.setVoxel(voxel, {color: newColor});
-            modifiedVoxels++;
+            if(this.isVoxelNonEmpty(Vector3.fromString(v))){
+                const voxel = Vector3.fromString(v);
+                this.setVoxel(voxel, {color: newColor});
+                modifiedVoxels++;
+            }
         });
         return modifiedVoxels;
     }
