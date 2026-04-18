@@ -105,7 +105,7 @@ export default function EditorPage() {
   const [selectedCamera, setSelectedCamera] = useState<Camera>({
     fovY: 90,
     near: 0.1,
-    far: 1000,
+    far: 5000,
     transform: {
       translation: new Vector3(0, 0, 0),
       scale: new Vector3(1, 1, 1),

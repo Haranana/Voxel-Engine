@@ -6,7 +6,7 @@ import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
 import { faceDirectionToVector, vectorToFaceDirection, type FaceDirection, type VoxelObject } from "../classes/voxelObject";
-import { additionalZShader, baseShaderWithWireframe, selectedAreaShader } from "../shaders/baseRenderableObjectShaders";
+import { additionalZShader, baseShaderWithWireframe, selectedAreaShader, voxelObjectBorderShader } from "../shaders/baseRenderableObjectShaders";
 import { Vector3 } from "../math/vector3.type";
 import { getVoxelFromObject } from "../classes/rayCaster";
 import { Vector2 } from "../math/vector2.type";
@@ -52,6 +52,7 @@ type RenderData = {
     device : GPUDevice | null,
     pipeline : GPURenderPipeline | null,
     selectedAreaPipeline: GPURenderPipeline | null,
+    objectBorderPipeline: GPURenderPipeline | null,
     uniformDataBuffer : GPUBuffer[] | null,
     bindGroup : GPUBindGroup[] | null,
     uniformView: StructuredView[] | null,
@@ -86,6 +87,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         device : null,
         pipeline : null,
         selectedAreaPipeline: null,
+        objectBorderPipeline: null,
         uniformDataBuffer : null,
         bindGroup : null,
         uniformView: null,
@@ -374,7 +376,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         resize(canvasRef.current!);
         
         const selectedObjectShaderCode = baseShaderWithWireframe();
-        
         const selectedObjectShaderModule = device.createShaderModule({
             label: 'selected object shader module',
             code: selectedObjectShaderCode,
@@ -385,6 +386,12 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             label: 'selected object selected area shader module',
             code: selectedAreaShaderCode,
         });
+
+        const objectBorderShaderCode = voxelObjectBorderShader();
+        const objectBorderShaderModule = device.createShaderModule({
+            label: `object border shader module`,
+            code: objectBorderShaderCode,
+        })
 
         const bindGroupLayout = device.createBindGroupLayout({
         entries: [
@@ -504,6 +511,66 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             },
         })
 
+        const objectborderPipeline = device.createRenderPipeline({
+            label: 'Selected object selected area mesh pipeline',
+            layout: pipelineLayout,
+            vertex: {
+                entryPoint: `vertexShader`,
+                module: objectBorderShaderModule,
+                buffers:[
+                    {
+                        arrayStride: 6*4,
+                        attributes:[
+                            {
+                                shaderLocation: 0,
+                                offset: 0,
+                                format: 'float32x3',
+                            },
+                            {
+                                shaderLocation: 1,
+                                offset: 12,
+                                format: 'unorm8x4',
+                            },
+                            {
+                                shaderLocation: 2,
+                                offset: 16,
+                                format: 'float32x2',
+                            },
+                        ]
+                    }
+                ]
+            },
+            fragment: {
+                entryPoint: `fragmentShader`,
+                module: objectBorderShaderModule,
+                targets: [{
+                format: presentationFormat,
+                blend: {
+                color: {
+                    srcFactor: 'src-alpha',
+                    dstFactor: 'one-minus-src-alpha',
+                    operation: 'add',
+                },
+                alpha: {
+                    srcFactor: 'one',
+                    dstFactor: 'one-minus-src-alpha',
+                    operation: 'add',
+                },
+            },
+                }],
+                
+            },
+            primitive: {
+                topology: "triangle-list",
+                cullMode: 'front',
+            },
+            depthStencil: {
+                depthWriteEnabled: false,
+                depthCompare: 'less-equal',
+                format: 'depth24plus',
+            },
+        })
+
         const selectedObjectUniformDataView = makeStructuredView(makeShaderDataDefinitions(selectedObjectShaderCode).uniforms.uniformData);
         const selectedObjectUniformBuffer = device.createBuffer({
             label: 'uniform buffer',
@@ -546,6 +613,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         renderDataRef.current.uniformDataBuffer = [selectedObjectUniformBuffer]
         renderDataRef.current.bindGroup = [bindGroupSelectedObject];
         renderDataRef.current.uniformView = [selectedObjectUniformDataView];
+        renderDataRef.current.objectBorderPipeline = objectborderPipeline;
         //renderDataRef.current.vertexBuffer = vertexDataBuffer;
         //renderDataRef.current.verticesAmount = numVertices;
 
@@ -564,14 +632,13 @@ export default function EditorCanvas(props: EditorCanvasProps) {
 
         const r = renderDataRef.current;
         if (!canRender()) return;
-        
 
         const canvas = canvasRef.current!;
-
         const context = r.context!;
         const device = r.device!;
         const pipeline = r.pipeline!;
         const selectedAreaPipeline = r.selectedAreaPipeline!;
+        const objectBorderPipeline = r.objectBorderPipeline!;
         const uniformDataBuffer = r.uniformDataBuffer!;
         const bindGroup = r.bindGroup!;
         const uniformView = r.uniformView!;
@@ -593,9 +660,9 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             props.selectedObject.rebuildMesh();
         }
         const selectedAreaMesh = props.selectedObject.getSelectedAreaMesh();
-
         const {vertexData, linesIndices, trianglesIndices, quadsIndices} = props.selectedObject.mesh!.getVerticesData();
         const selectedAreaMeshData = selectedAreaMesh!.getVerticesData();
+        const objectBorderMeshData = props.selectedObject.getBorderMesh().getVerticesData();
 
         const vertexDataBuffer = device.createBuffer({
             label: 'vertex data buffer',
@@ -611,6 +678,13 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         });
         device.queue.writeBuffer(selectedAreaVertexDataBuffer , 0 , selectedAreaMeshData.vertexData);
 
+        const objectBorderVertexDataBuffer = device.createBuffer({
+            label: 'vertex data buffer',
+            size: objectBorderMeshData.vertexData.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(objectBorderVertexDataBuffer , 0 , objectBorderMeshData.vertexData);
+
         const trianglesIndexBuffer = device.createBuffer({
             label: 'index data buffer',
             size: trianglesIndices.byteLength,
@@ -624,6 +698,13 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
         });
         device.queue.writeBuffer(selectedAreaTrianglesIndexBuffer, 0 , selectedAreaMeshData.trianglesIndices);
+
+        const objectBorderTrianglesIndexBuffer = device.createBuffer({
+            label: 'index data buffer',
+            size: objectBorderMeshData.trianglesIndices.byteLength,
+            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(objectBorderTrianglesIndexBuffer, 0, objectBorderMeshData.trianglesIndices);
 
         const linesIndexBuffer = device.createBuffer({
             label: 'index data buffer',
@@ -668,68 +749,74 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height).toArrays();
         const shadersUniformsCameraViewMatrix = cameraViewMatrix.toArrays();
 
-            if (!depthTexture ||
-                depthTexture.width !== canvasTexture.width ||
-                depthTexture.height !== canvasTexture.height) {
-            if (depthTexture) {
-                depthTexture.destroy();
-            }
-            depthTexture = device.createTexture({
-                size: [canvasTexture.width, canvasTexture.height],
-                format: 'depth24plus',
-                usage: GPUTextureUsage.RENDER_ATTACHMENT,
-            });
-            }
-            r.depthTexture = depthTexture;
-            const depthStencilAttachmentView = depthTexture.createView();
+        if (!depthTexture ||
+            depthTexture.width !== canvasTexture.width ||
+            depthTexture.height !== canvasTexture.height) {
+        if (depthTexture) {
+            depthTexture.destroy();
+        }
+        depthTexture = device.createTexture({
+            size: [canvasTexture.width, canvasTexture.height],
+            format: 'depth24plus',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+        }
+        r.depthTexture = depthTexture;
+        const depthStencilAttachmentView = depthTexture.createView();
 
-            const renderPassDescriptor : GPURenderPassDescriptor = {
-            label: `basic canvas renderPass`,
-            colorAttachments: [
-                {
-                    view,
-                    loadOp: 'clear',
-                    storeOp: 'store',                    
-                },
-            ],
-                depthStencilAttachment: {
-                view: depthStencilAttachmentView,
-                depthClearValue: 1.0,
-                depthLoadOp: 'clear',
-                depthStoreOp: 'store',
-                },
-            };
-            
-            const encoder : GPUCommandEncoder = device!.createCommandEncoder({
-                label: 'basic encoder'
-            });
-            
-            const shadersUniformsValuesResolution = [canvas!.width, canvas!.height];
-            uniformView[0].set({
-                resolution: shadersUniformsValuesResolution,
-                objectTransform: shadersUniformsObjectTransformMatrix,
-                ndcProjection: shadersUniformsNdcProjectionMatrix,
-                viewMatrix: shadersUniformsCameraViewMatrix,
-            });
-            device!.queue.writeBuffer(uniformDataBuffer[0], 0, uniformView[0].arrayBuffer);
+        const renderPassDescriptor : GPURenderPassDescriptor = {
+        label: `basic canvas renderPass`,
+        colorAttachments: [
+            {
+                view,
+                loadOp: 'clear',
+                storeOp: 'store',                    
+            },
+        ],
+            depthStencilAttachment: {
+            view: depthStencilAttachmentView,
+            depthClearValue: 1.0,
+            depthLoadOp: 'clear',
+            depthStoreOp: 'store',
+            },
+        };
+        
+        const encoder : GPUCommandEncoder = device!.createCommandEncoder({
+            label: 'basic encoder'
+        });
+        
+        const shadersUniformsValuesResolution = [canvas!.width, canvas!.height];
+        uniformView[0].set({
+            resolution: shadersUniformsValuesResolution,
+            objectTransform: shadersUniformsObjectTransformMatrix,
+            ndcProjection: shadersUniformsNdcProjectionMatrix,
+            viewMatrix: shadersUniformsCameraViewMatrix,
+        });
+        device!.queue.writeBuffer(uniformDataBuffer[0], 0, uniformView[0].arrayBuffer);
 
-            const pass : GPURenderPassEncoder = encoder.beginRenderPass(renderPassDescriptor);
+        const pass : GPURenderPassEncoder = encoder.beginRenderPass(renderPassDescriptor);
 
-            pass.setPipeline(pipeline);
-            pass.setVertexBuffer(0 , vertexDataBuffer);
-            pass.setIndexBuffer(trianglesIndexBuffer, "uint32");
-            pass.setBindGroup(0, bindGroup[0]);
-            pass.drawIndexed(trianglesIndices.length);
-           
-            pass.setPipeline(selectedAreaPipeline);
-            pass.setVertexBuffer(0, selectedAreaVertexDataBuffer);
-            pass.setIndexBuffer(selectedAreaTrianglesIndexBuffer, "uint32");
-            pass.setBindGroup(0, bindGroup[0]);
-            pass.drawIndexed(selectedAreaMeshData.trianglesIndices.length);
-            pass.end();
+        pass.setPipeline(pipeline);
+        pass.setVertexBuffer(0 , vertexDataBuffer);
+        pass.setIndexBuffer(trianglesIndexBuffer, "uint32");
+        pass.setBindGroup(0, bindGroup[0]);
+        pass.drawIndexed(trianglesIndices.length);
+        
+        pass.setPipeline(selectedAreaPipeline);
+        pass.setVertexBuffer(0, selectedAreaVertexDataBuffer);
+        pass.setIndexBuffer(selectedAreaTrianglesIndexBuffer, "uint32");
+        pass.setBindGroup(0, bindGroup[0]);
+        pass.drawIndexed(selectedAreaMeshData.trianglesIndices.length);
 
-            const commandBuffer = encoder.finish();
-            device!.queue.submit([commandBuffer]);
+        pass.setPipeline(objectBorderPipeline);
+        pass.setVertexBuffer(0, objectBorderVertexDataBuffer);
+        pass.setIndexBuffer(objectBorderTrianglesIndexBuffer, "uint32");
+        pass.setBindGroup(0, bindGroup[0]);
+        pass.drawIndexed(objectBorderMeshData.trianglesIndices.length);
+        pass.end();
+
+        const commandBuffer = encoder.finish();
+        device!.queue.submit([commandBuffer]);
     }
 
   useEffect(() => {
