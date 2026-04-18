@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
 import type { ObjectProperties, RenderMode } from "../RenderableObjectTypes";
-import { degreeToRadians } from "../math/utils";
+import { clamp, degreeToRadians } from "../math/utils";
 import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
@@ -19,6 +19,7 @@ export type EditorCanvasProps = {
     objectProperties: ObjectProperties;
     camera: Camera;
     onSelectedObjectChanged: (v: VoxelObject) => void;
+    onSelectedCameraChanged: React.Dispatch<React.SetStateAction<Camera>>;
     renderMode: RenderMode;
     selectMode: SelectMode;
     editMode: EditMode;
@@ -70,6 +71,13 @@ type SelectSession = {
     endCoords: Vector3 | null,
 }
 
+type CameraMoveSession = {
+    lastX: number | null,
+    lastY: number | null,
+    deltaX: number,
+    deltaY: number,
+}
+
 export default function EditorCanvas(props: EditorCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const initializedRef = useRef(false);
@@ -97,13 +105,30 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         startCoords: null,
         endCoords: null,
     })
-
     const selectSessionStarted = ()=>{
         return selectSessionRef.current.startCoords != null;
     }
     const resetSelectSession = ()=>{
         selectSessionRef.current = {startCoords: null, endCoords: null}
     }
+
+    //stores data for moving camera with mouse
+    const cameraMoveSessionRef = useRef<CameraMoveSession>({
+        lastX: null,
+        lastY: null,
+        deltaX: 0,
+        deltaY: 0,
+    });
+    const cameraMoveSessionStarted = ()=>{
+        return cameraMoveSessionRef.current.lastX != null && cameraMoveSessionRef.current.lastY != null;
+    }
+    const resetCameraMoveSession = ()=>{
+        cameraMoveSessionRef.current = {
+        lastX: null,
+        lastY: null,
+        deltaX: 0,
+        deltaY: 0,
+    }}
 
     const canRender = () => {
         const r = renderDataRef.current;
@@ -131,9 +156,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     function shootRay(clickPos: Vector2){    
         if(!canvasRef.current) return; 
         const canvas = canvasRef.current;
-        const cameraTranslation : Matrix4 = Matrices4.translation(props.camera.transform.translation);
-        const cameraScale : Matrix4 = Matrices4.scaling(props.camera.transform.scale);
-        const cameraRotation : Matrix4 = Matrices4.rotation(degreeToRadians(props.camera.transform.rotation.x), degreeToRadians(props.camera.transform.rotation.y), degreeToRadians(props.camera.transform.rotation.z));
         const objectTranslation : Matrix4 = props.objectProperties? Matrices4.translation(props.objectProperties.translation) : Matrices4.identity();
         const objectScale : Matrix4 = props.objectProperties? Matrices4.scaling(props.objectProperties.scale) : Matrices4.identity();
         const objectRotation: Matrix4 = props.objectProperties? Matrices4.rotation(degreeToRadians(props.objectProperties.rotation.x), degreeToRadians(props.objectProperties.rotation.y), degreeToRadians(props.objectProperties.rotation.z)) : Matrices4.identity();
@@ -141,7 +163,19 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const ndcProjectionMatrix = props.camera.projectionType==="orthographic"?
             PerspectiveMatrices.orthogonalProjection(-canvas.width/2, canvas.width/2,-canvas.height/2, canvas.height/2, props.camera.near, props.camera.far) 
             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height);
-        const cameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion();
+        
+        
+        const eye = new Vector3(
+            props.camera.target.x + props.camera.distance * Math.cos(degreeToRadians(props.camera.pitch)) * Math.sin(degreeToRadians(props.camera.yaw)),
+            props.camera.target.y + props.camera.distance * Math.sin(degreeToRadians(props.camera.pitch)),
+            props.camera.target.z + props.camera.distance * Math.cos(degreeToRadians(props.camera.pitch)) * Math.cos(degreeToRadians(props.camera.yaw)),
+        );
+        const cameraViewMatrix = PerspectiveMatrices.lightView(
+            eye,
+            props.camera.target,
+            new Vector3(0, 1, 0)
+        );
+       
         return getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
     }
 
@@ -149,33 +183,41 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         if(!canvasRef.current) return; 
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
 
-        const rayResults = shootRay(clickPos);
-        if(!rayResults) return;
+        //M1 - action
+        //M2 - camera move
+        if(e.button === 0){
+            const rayResults = shootRay(clickPos);
+            if(!rayResults) return;
 
-        const hitVoxel : Vector3 = rayResults.voxelCoords;
-        const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
+            const hitVoxel : Vector3 = rayResults.voxelCoords;
+            const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
 
-        if(props.selectMode=="Cube"){
-            selectSessionRef.current = {startCoords: null, endCoords: null}
-            selectSessionRef.current.startCoords = hitVoxel;  
-        }else{
+            if(props.selectMode=="Cube"){
+                selectSessionRef.current = {startCoords: null, endCoords: null}
+                selectSessionRef.current.startCoords = hitVoxel;  
+            }else{
 
-            let voxelObjectChanged = false;
-            let selectedAreaChanged = false;
-            if(props.editMode=="Add"){
-                voxelObjectChanged = props.selectedObject.addSelectedVoxels(defaultColor)!=0;
-                selectedAreaChanged = props.selectedObject.resetSelect()!=0;
-            }else if(props.editMode=="Paint"){
-                voxelObjectChanged = props.selectedObject.paintSelectedVoxels(debugPaintColor)!=0;
-                selectedAreaChanged = props.selectedObject.resetSelect()!=0;
-            }else if(props.editMode=="Remove"){
-                voxelObjectChanged = props.selectedObject.removeSelectedVoxels()!=0;
-                selectedAreaChanged = props.selectedObject.resetSelect()!=0;
+                let voxelObjectChanged = false;
+                let selectedAreaChanged = false;
+                if(props.editMode=="Add"){
+                    voxelObjectChanged = props.selectedObject.addSelectedVoxels(defaultColor)!=0;
+                    selectedAreaChanged = props.selectedObject.resetSelect()!=0;
+                }else if(props.editMode=="Paint"){
+                    voxelObjectChanged = props.selectedObject.paintSelectedVoxels(debugPaintColor)!=0;
+                    selectedAreaChanged = props.selectedObject.resetSelect()!=0;
+                }else if(props.editMode=="Remove"){
+                    voxelObjectChanged = props.selectedObject.removeSelectedVoxels()!=0;
+                    selectedAreaChanged = props.selectedObject.resetSelect()!=0;
+                }
+
+                if(voxelObjectChanged || selectedAreaChanged){
+                    props.onSelectedObjectChanged(props.selectedObject.copy());
+                }
             }
-
-            if(voxelObjectChanged || selectedAreaChanged){
-                props.onSelectedObjectChanged(props.selectedObject.copy());
-            }
+        }else if(e.button===2){ 
+            console.log("[handlePointerDown] scroll input detected");
+            cameraMoveSessionRef.current.lastX = clickPos.x;
+            cameraMoveSessionRef.current.lastY = clickPos.y;
         }
       
     }
@@ -184,21 +226,28 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         if(!canvasRef.current) return; 
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
 
+        if(cameraMoveSessionStarted()){
+            const dx = clickPos.x - cameraMoveSessionRef.current.lastX!;
+            const dy = clickPos.y - cameraMoveSessionRef.current.lastY!;
+
+            if(dx!==0 || dy!==0) {
+                cameraMoveSessionRef.current.deltaX += dx;
+                cameraMoveSessionRef.current.deltaY += dy;
+
+                cameraMoveSessionRef.current.lastX = clickPos.x;
+                cameraMoveSessionRef.current.lastY = clickPos.y;
+            }
+            
+        }else{
+
         const rayResults = shootRay(clickPos);
         if(!rayResults){
-            props.selectedObject.resetSelect();
-            props.onSelectedObjectChanged(props.selectedObject.copy());
+            if(props.selectedObject.resetSelect()!==0) props.onSelectedObjectChanged(props.selectedObject.copy());
+            
             return;
         }
         const hitVoxel : Vector3 = rayResults.voxelCoords;
         const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
-
-        /*
-        if(props.editMode == "Add" && props.selectedObject.getVoxel(hitVoxel.addVector(hitDirection)) == null){
-            props.selectedObject.resetSelect();
-            props.onSelectedObjectChanged(props.selectedObject.copy());
-            return;
-        }*/
 
         let higlightCausedChange = false;
         let selectedAreaChanged = false;
@@ -249,12 +298,15 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         if(higlightCausedChange || selectedAreaChanged || voxelObjectChanged) {
             props.onSelectedObjectChanged(props.selectedObject.copy());
         }
-        
+    }
     }
 
     function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>){
         if(!canvasRef.current) return; 
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
+        if(cameraMoveSessionStarted()){
+            resetCameraMoveSession();
+        }
 
         const rayResults = shootRay(clickPos);
         if(!rayResults) return;
@@ -275,6 +327,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             }
             selectSessionRef.current = {startCoords: null, endCoords: null}
         }
+
         props.selectedObject.resetSelect();
         props.onSelectedObjectChanged(props.selectedObject.copy());
         handlePointerMove(e);
@@ -586,19 +639,31 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const canvasTexture = context.getCurrentTexture();
         const view = canvasTexture.createView();
 
-            const cameraTranslation : Matrix4 = Matrices4.translation(props.camera.transform.translation);
-            const cameraScale : Matrix4 = Matrices4.scaling(props.camera.transform.scale);
-            const cameraRotation : Matrix4 = Matrices4.rotation(degreeToRadians(props.camera.transform.rotation.x), degreeToRadians(props.camera.transform.rotation.y), degreeToRadians(props.camera.transform.rotation.z));
+        //const cameraTranslation : Matrix4 = Matrices4.translation(props.camera.transform.translation);
+        //const cameraScale : Matrix4 = Matrices4.scaling(props.camera.transform.scale);
+        const eye = new Vector3(
+            props.camera.target.x + props.camera.distance * Math.cos(degreeToRadians(props.camera.pitch)) * Math.sin(degreeToRadians(props.camera.yaw)),
+            props.camera.target.y + props.camera.distance * Math.sin(degreeToRadians(props.camera.pitch)),
+            props.camera.target.z + props.camera.distance * Math.cos(degreeToRadians(props.camera.pitch)) * Math.cos(degreeToRadians(props.camera.yaw)),
+        );
+        const cameraViewMatrix = PerspectiveMatrices.lightView(
+            eye,
+            props.camera.target,
+            new Vector3(0, 1, 0)
+        );
+        //const cameraRotation : Matrix4 = Matrices4.rotation(degreeToRadians(props.camera.transform.rotation.x), degreeToRadians(props.camera.transform.rotation.y), degreeToRadians(props.camera.transform.rotation.z));
 
-            const objectTranslation : Matrix4 = props.objectProperties? Matrices4.translation(props.objectProperties.translation) : Matrices4.identity();
-            const objectScale : Matrix4 = props.objectProperties? Matrices4.scaling(props.objectProperties.scale) : Matrices4.identity();
-            const objectRotation: Matrix4 = props.objectProperties? Matrices4.rotation(degreeToRadians(props.objectProperties.rotation.x), degreeToRadians(props.objectProperties.rotation.y), degreeToRadians(props.objectProperties.rotation.z)) : Matrices4.identity();
 
-            const shadersUniformsObjectTransformMatrix = objectTranslation.multMatrix(objectRotation).multMatrix(objectScale).toArrays();
-            const shadersUniformsNdcProjectionMatrix = props.camera.projectionType==="orthographic"?
-             PerspectiveMatrices.orthogonalProjection(-canvas.width/2, canvas.width/2,-canvas.height/2, canvas.height/2, props.camera.near, props.camera.far).toArrays() 
-             : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height).toArrays();
-            const shadersUniformsCameraViewMatrix = cameraTranslation.multMatrix(cameraRotation).multMatrix(cameraScale).getInversion().toArrays();
+
+        const objectTranslation : Matrix4 = props.objectProperties? Matrices4.translation(props.objectProperties.translation) : Matrices4.identity();
+        const objectScale : Matrix4 = props.objectProperties? Matrices4.scaling(props.objectProperties.scale) : Matrices4.identity();
+        const objectRotation: Matrix4 = props.objectProperties? Matrices4.rotation(degreeToRadians(props.objectProperties.rotation.x), degreeToRadians(props.objectProperties.rotation.y), degreeToRadians(props.objectProperties.rotation.z)) : Matrices4.identity();
+
+        const shadersUniformsObjectTransformMatrix = objectTranslation.multMatrix(objectRotation).multMatrix(objectScale).toArrays();
+        const shadersUniformsNdcProjectionMatrix = props.camera.projectionType==="orthographic"?
+            PerspectiveMatrices.orthogonalProjection(-canvas.width/2, canvas.width/2,-canvas.height/2, canvas.height/2, props.camera.near, props.camera.far).toArrays() 
+            : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(props.camera.fovY), props.camera.near, props.camera.far, canvas.width/canvas.height).toArrays();
+        const shadersUniformsCameraViewMatrix = cameraViewMatrix.toArrays();
 
             if (!depthTexture ||
                 depthTexture.width !== canvasTexture.width ||
@@ -677,10 +742,119 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     renderVoxelObject();
   }, [props.objectProperties , props.camera, props.selectedObject])
 
+
+
+  const pressedKeysRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      pressedKeysRef.current.add(e.key.toLowerCase());
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      pressedKeysRef.current.delete(e.key.toLowerCase());
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+    useEffect(() => {
+        const handleWheel = (e: WheelEvent) => {
+            const zoomSpeed = 0.25;
+
+            props.onSelectedCameraChanged(prev => {
+            const newDistance = Math.max(0.1, prev.distance + e.deltaY * zoomSpeed);
+            return newDistance !== prev.distance
+                ? { ...prev, distance: newDistance }
+                : prev;});
+        };
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        canvas.addEventListener("wheel", handleWheel);
+        return () => {
+            canvas.removeEventListener("wheel", handleWheel);
+        };
+
+    }, []);
+
+  useEffect(() => {
+    let animationFrameId: number | null = null;
+    let lastTime: number | null = null;
+
+    const animationTick = (time: number) => {
+      const pitchChangeRate = 90;
+      const yawChangeRate = 90;
+      const last = lastTime ?? time;
+      const deltaTime = (time - last) / 1000;
+      lastTime = time;
+      
+      props.onSelectedCameraChanged((prev)=>{
+        let updatedCamera = { ...prev };
+        let cameraModified = false;
+
+        if(pressedKeysRef.current.has("w")){
+          updatedCamera.pitch = clamp({value: updatedCamera.pitch + pitchChangeRate*deltaTime, min: -89, max: 89});
+          cameraModified = true;
+        }
+        if(pressedKeysRef.current.has("s")){
+          updatedCamera.pitch = clamp({value: updatedCamera.pitch - pitchChangeRate*deltaTime, min: -89, max: 89});
+          cameraModified = true;
+        }
+        if(pressedKeysRef.current.has("a")){
+          updatedCamera.yaw = updatedCamera.yaw + yawChangeRate*deltaTime;
+          cameraModified = true;
+        }
+        if(pressedKeysRef.current.has("d")){
+          updatedCamera.yaw = updatedCamera.yaw - yawChangeRate*deltaTime;
+          cameraModified = true;
+        }   
+
+        const mouseSensitivity = 0.5;
+        const dx = cameraMoveSessionRef.current.deltaX;
+        const dy = cameraMoveSessionRef.current.deltaY;
+
+        if (dx !== 0 || dy !== 0) {
+            console.log("[RAF] mouse input detected");
+            updatedCamera.yaw -= dx * mouseSensitivity;
+            updatedCamera.pitch -=dy * mouseSensitivity;
+            updatedCamera.pitch = clamp( {value: updatedCamera.pitch , min: -89, max: 89});
+            cameraMoveSessionRef.current.deltaX = 0;
+            cameraMoveSessionRef.current.deltaY = 0;
+
+            cameraModified = true;
+        }
+
+          return cameraModified? updatedCamera : prev;
+      });
+             
+      animationFrameId = requestAnimationFrame(animationTick);
+    };
+
+    animationFrameId = requestAnimationFrame(animationTick);
+
+    return () => {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, []);
+
+
   return (
     <div className="CanvasContainer">
         <canvas
         ref={canvasRef}
+        onContextMenu={(e)=>e.preventDefault()}
         onPointerDown={(e) => handlePointerDown(e)}
         onPointerUp={(e)=>handlePointerUp(e)}
         onPointerCancel={(e)=>handlePointerCancel(e)}

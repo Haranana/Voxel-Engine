@@ -5,7 +5,7 @@ import type { Camera, ProjectionType } from "../classes/camera";
 import { Vector3 } from "../math/vector3.type";
 import { clamp, mod } from "../math/utils";
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/16/solid";
-import "../editorWidgets/ExpandableRow.css"
+import "../editorWidgets/ExpandableRow.css";
 
 export type CameraPropertiesProps = {
     camera: Camera;
@@ -17,7 +17,7 @@ export type CameraPropertiesProps = {
 export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
     const camera = props.camera;
 
-    const TriggerIcon = props.isOpen? ChevronDownIcon : ChevronRightIcon;
+    const TriggerIcon = props.isOpen ? ChevronDownIcon : ChevronRightIcon;
 
     const fovYMinValue = 1;
     const fovYMaxValue = 179;
@@ -28,19 +28,13 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
     const farMinValue = 0.001;
     const farMaxValue = 5000;
 
-    const translationXMinValue = -10000;
-    const translationXMaxValue = 10000;
-    const translationYMinValue = -10000;
-    const translationYMaxValue = 10000;
-    const translationZMinValue = -10000;
-    const translationZMaxValue = 10000;
+    const distanceMinValue = 0;
+    const distanceMaxValue = 10000;
 
-    const rotationXMinValue = 0;
-    const rotationXMaxValue = 360;
-    const rotationYMinValue = 0;
-    const rotationYMaxValue = 360;
-    const rotationZMinValue = 0;
-    const rotationZMaxValue = 360;
+    const pitchMinValue = -89;
+    const pitchMaxValue = 89;
+    const yawMinValue = 0;
+    const yawMaxValue = 360;
 
     const onProjectionTypeChange = (newVal: ProjectionType) => {
         props.onCameraChange((prev) => ({
@@ -84,10 +78,12 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
 
     return (
         <ExpandableRow
-        trigger = {<button type="button" className="ExpandableRowTriggerButton">
-        <TriggerIcon className="ExpandableRowTriggerButtonIcon" />
-        <p className="ExpandableRowTriggerButtonText">Camera properties</p>
-      </button>}
+            trigger={
+                <button type="button" className="ExpandableRowTriggerButton">
+                    <TriggerIcon className="ExpandableRowTriggerButtonIcon" />
+                    <p className="ExpandableRowTriggerButtonText">Camera properties</p>
+                </button>
+            }
             isOpen={props.isOpen}
             onOpenChange={props.onOpenChange}
         >
@@ -203,268 +199,186 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                     </div>
                 </div>
 
-                <div className="CameraTransformProperties ExpendableRowChildSection">
-                    <p>Position</p>
+                <div className="CameraOrbitProperties ExpendableRowChildSection">
+                    <p>Orbit</p>
 
-                    <div className="PropertiesRow TransformPropertiesXRow">
-                        <p className="MutableFieldTitle">X</p>
+                    <div className="PropertiesRow">
+                        <p className="MutableFieldTitle">Distance</p>
                         <MutableNumberField
-                            value={camera.transform.translation.x}
-                            minValue={translationXMinValue}
-                            maxValue={translationXMaxValue}
+                            value={camera.distance}
+                            minValue={distanceMinValue}
+                            maxValue={distanceMaxValue}
                             step={20}
                             onStep={(delta) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        translation: new Vector3(
-                                            clamp({
-                                                value: prev.transform.translation.x + delta,
-                                                min: translationXMinValue,
-                                                max: translationXMaxValue,
-                                            }),
-                                            prev.transform.translation.y,
-                                            prev.transform.translation.z
-                                        ),
-                                    },
+                                    distance: clamp({
+                                        value: prev.distance + delta,
+                                        min: distanceMinValue,
+                                        max: distanceMaxValue,
+                                    }),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        translation: new Vector3(
-                                            clamp({
-                                                value,
-                                                min: translationXMinValue,
-                                                max: translationXMaxValue,
-                                            }),
-                                            prev.transform.translation.y,
-                                            prev.transform.translation.z
-                                        ),
-                                    },
+                                    distance: clamp({
+                                        value,
+                                        min: distanceMinValue,
+                                        max: distanceMaxValue,
+                                    }),
                                 }));
                             }}
                             canIncrease={true}
                             canDecrease={true}
-                            inputId={"CameraTransformXValue"}
+                            inputId={"CameraDistanceValue"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesYRow">
-                        <p className="MutableFieldTitle">Y</p>
+                    <div className="PropertiesRow">
+                        <p className="MutableFieldTitle">Pitch</p>
                         <MutableNumberField
-                            value={camera.transform.translation.y}
-                            minValue={translationYMinValue}
-                            maxValue={translationYMaxValue}
-                            step={20}
+                            value={camera.pitch}
+                            minValue={pitchMinValue}
+                            maxValue={pitchMaxValue}
+                            step={1}
                             onStep={(delta) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        translation: new Vector3(
-                                            prev.transform.translation.x,
-                                            clamp({
-                                                value: prev.transform.translation.y + delta,
-                                                min: translationYMinValue,
-                                                max: translationYMaxValue,
-                                            }),
-                                            prev.transform.translation.z
-                                        ),
-                                    },
+                                    pitch: clamp({value: prev.pitch + delta, min: pitchMinValue, max: pitchMaxValue }), 
                                 }));
                             }}
                             onAcceptedChange={(value) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        translation: new Vector3(
-                                            prev.transform.translation.x,
-                                            clamp({
-                                                value,
-                                                min: translationYMinValue,
-                                                max: translationYMaxValue,
-                                            }),
-                                            prev.transform.translation.z
-                                        ),
-                                    },
+                                    pitch: value,
                                 }));
                             }}
                             canIncrease={true}
                             canDecrease={true}
-                            inputId={"CameraTransformYValue"}
+                            inputId={"CameraPitchValue"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesZRow">
-                        <p className="MutableFieldTitle">Z</p>
+                    <div className="PropertiesRow">
+                        <p className="MutableFieldTitle">Yaw</p>
                         <MutableNumberField
-                            value={camera.transform.translation.z}
-                            minValue={translationZMinValue}
-                            maxValue={translationZMaxValue}
-                            step={20}
+                            value={camera.yaw}
+                            minValue={yawMinValue}
+                            maxValue={yawMaxValue}
+                            step={1}
                             onStep={(delta) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        translation: new Vector3(
-                                            prev.transform.translation.x,
-                                            prev.transform.translation.y,
-                                            clamp({
-                                                value: prev.transform.translation.z + delta,
-                                                min: translationZMinValue,
-                                                max: translationZMaxValue,
-                                            })
-                                        ),
-                                    },
+                                    yaw: mod(prev.yaw + delta, 360),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        translation: new Vector3(
-                                            prev.transform.translation.x,
-                                            prev.transform.translation.y,
-                                            clamp({
-                                                value,
-                                                min: translationZMinValue,
-                                                max: translationZMaxValue,
-                                            })
-                                        ),
-                                    },
+                                    yaw: mod(value, 360),
                                 }));
                             }}
                             canIncrease={true}
                             canDecrease={true}
-                            inputId={"CameraTransformZValue"}
+                            inputId={"CameraYawValue"}
                         />
                     </div>
                 </div>
 
-                <div className="CameraRotationProperties ExpendableRowChildSection">
-                    <p>Rotation</p>
+                <div className="CameraTargetProperties ExpendableRowChildSection">
+                    <p>Target</p>
 
                     <div className="PropertiesRow TransformPropertiesXRow">
                         <p className="MutableFieldTitle">X</p>
                         <MutableNumberField
-                            value={camera.transform.rotation.x}
-                            minValue={rotationXMinValue}
-                            maxValue={rotationXMaxValue}
-                            step={1}
+                            value={camera.target.x}
+                            step={20}
                             onStep={(delta) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        rotation: new Vector3(
-                                            mod(prev.transform.rotation.x + delta, 360),
-                                            prev.transform.rotation.y,
-                                            prev.transform.rotation.z
-                                        ),
-                                    },
+                                    target: new Vector3(
+                                        prev.target.x + delta,
+                                        prev.target.y,
+                                        prev.target.z
+                                    ),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        rotation: new Vector3(
-                                            mod(value, 360),
-                                            prev.transform.rotation.y,
-                                            prev.transform.rotation.z
-                                        ),
-                                    },
+                                    target: new Vector3(
+                                        value,
+                                        prev.target.y,
+                                        prev.target.z
+                                    ),
                                 }));
                             }}
                             canIncrease={true}
                             canDecrease={true}
-                            inputId={"CameraRotateXValue"}
+                            inputId={"CameraTargetXValue"}
                         />
                     </div>
 
                     <div className="PropertiesRow TransformPropertiesYRow">
                         <p className="MutableFieldTitle">Y</p>
                         <MutableNumberField
-                            value={camera.transform.rotation.y}
-                            minValue={rotationYMinValue}
-                            maxValue={rotationYMaxValue}
-                            step={1}
+                            value={camera.target.y}
+                            step={20}
                             onStep={(delta) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        rotation: new Vector3(
-                                            prev.transform.rotation.x,
-                                            mod(prev.transform.rotation.y + delta, 360),
-                                            prev.transform.rotation.z
-                                        ),
-                                    },
+                                    target: new Vector3(
+                                        prev.target.x,
+                                        prev.target.y + delta,
+                                        prev.target.z
+                                    ),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        rotation: new Vector3(
-                                            prev.transform.rotation.x,
-                                            mod(value, 360),
-                                            prev.transform.rotation.z
-                                        ),
-                                    },
+                                    target: new Vector3(
+                                        prev.target.x,
+                                        value,
+                                        prev.target.z
+                                    ),
                                 }));
                             }}
                             canIncrease={true}
                             canDecrease={true}
-                            inputId={"CameraRotateYValue"}
+                            inputId={"CameraTargetYValue"}
                         />
                     </div>
 
                     <div className="PropertiesRow TransformPropertiesZRow">
                         <p className="MutableFieldTitle">Z</p>
                         <MutableNumberField
-                            value={camera.transform.rotation.z}
-                            minValue={rotationZMinValue}
-                            maxValue={rotationZMaxValue}
-                            step={1}
+                            value={camera.target.z}
+                            step={20}
                             onStep={(delta) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        rotation: new Vector3(
-                                            prev.transform.rotation.x,
-                                            prev.transform.rotation.y,
-                                            mod(prev.transform.rotation.z + delta, 360)
-                                        ),
-                                    },
+                                    target: new Vector3(
+                                        prev.target.x,
+                                        prev.target.y,
+                                        prev.target.z + delta
+                                    ),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
                                 props.onCameraChange((prev) => ({
                                     ...prev,
-                                    transform: {
-                                        ...prev.transform,
-                                        rotation: new Vector3(
-                                            prev.transform.rotation.x,
-                                            prev.transform.rotation.y,
-                                            mod(value, 360)
-                                        ),
-                                    },
+                                    target: new Vector3(
+                                        prev.target.x,
+                                        prev.target.y,
+                                        value
+                                    ),
                                 }));
                             }}
                             canIncrease={true}
                             canDecrease={true}
-                            inputId={"CameraRotateZValue"}
+                            inputId={"CameraTargetZValue"}
                         />
                     </div>
                 </div>

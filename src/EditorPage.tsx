@@ -15,6 +15,7 @@ import { ActionButtonsPanel, type ActionButtonData } from "./editorWidgets/Actio
 import { ExpandableRow } from "./editorWidgets/ExpandableRow";
 import { EditToolsWidget } from "./editorWidgets/EditToolsWidget";
 import { SelectToolsWidget } from "./editorWidgets/SelectToolsWidget";
+import { mod } from "./math/utils";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -37,7 +38,7 @@ export default function EditorPage() {
     useState<ObjectProperties>({
       translation: new Vector3(0, 0, -500),
       scale: new Vector3(1, 1, 1),
-      rotation: new Vector3(45, 40, 0),
+      rotation: new Vector3(0, 0, 0),
     });
 
   const [selectedObject, setSelectedObject] = useState<VoxelObject>(
@@ -111,7 +112,12 @@ export default function EditorPage() {
       rotation: new Vector3(0, 0, 0),
     },
     projectionType: "perspective",
+    distance: 500,
+    target: new Vector3(0,0,-500),
+    pitch: 0,
+    yaw: 0,
   });
+
 
   const onLeftPanelWidthChange = (w: number) => {
     const declaredClamped = clamp(w, leftPanelData.minWidth, leftPanelData.maxWidth);
@@ -237,7 +243,7 @@ export default function EditorPage() {
     leftPanelData,
     rightPanelData,
   ]);
-
+ 
   useEffect(() => {
     if (verticalHeight <= 0) return;
 
@@ -273,8 +279,14 @@ export default function EditorPage() {
     bottomPanelData,
   ]);
 
+
+
   const onSelectedObjectChanged = (newObject: VoxelObject) => {
     setSelectedObject(newObject);
+  };
+
+  const onSelectedCameraChanged = (c: Camera) => {
+    setSelectedCamera(c);
   };
 
   const [isTransformObjectPropertiesOpen, setIsTransformObjectPropertiesOpen] = useState<boolean>(false);
@@ -291,7 +303,7 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
     onCameraChange={setSelectedCamera}
     isOpen={isCameraPropertiesWidgetOpen}
     onOpenChange={setIsCameraPropertiesWidgetOpen}
-/>
+  />
 
   const [currentSelectionType , setCurrentSelectionType] = useState<SelectMode>("Voxel");
   const [isSelectToolsWidgetOpen, setIsSelectToolsWidgetOpen] = useState<boolean>(false);
@@ -368,7 +380,6 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
     onOpenChange={setIsEditToolsWidgetOpen}
   />
   
-  
   return (
     <div className="EditorPage">
       <div className="EditorNav"></div>
@@ -411,6 +422,7 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
                 objectProperties={selectedObjectProperties}
                 camera={selectedCamera}
                 onSelectedObjectChanged={onSelectedObjectChanged}
+                onSelectedCameraChanged={setSelectedCamera}
                 selectedObject={selectedObject}
                 renderMode={selectedRenderMode}
                 selectMode={currentSelectionType}
