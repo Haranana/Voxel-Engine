@@ -37,7 +37,7 @@ export function vectorToFaceDirection(v: Vector3){
         return "NegX";
     }else if(v.equals(new Vector3(0,1,0))){
         return "PosY";
-    }else if(v.equals(new Vector3(0,1,0))){
+    }else if(v.equals(new Vector3(0,-1,0))){
         return "NegY";
     }else if(v.equals(new Vector3(0,0,1))){
         return "PosZ";
@@ -602,7 +602,7 @@ export class VoxelObject{
     //returns true if successfuly added or if all voxels were already selected
     //returns false if starting voxel doesn't exist
     selectFace(v: Vector3, dir: FaceDirection, emptyVoxels: boolean = false): boolean{
-        console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
+        //console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
         if(!this.voxelExists(v)) {
             return false;
         }
@@ -610,10 +610,11 @@ export class VoxelObject{
         this.#selectFaceRecursion(v, dir, emptyVoxels);
         this.voxelsModified = true;
         this.selectedAreaModified = true;
-        console.log(`[selectFace] voxels of given face selected, length: ${this.selectedVoxels.size}`)
+        //console.log(`[selectFace] voxels of given face: ${dir} | length: ${this.selectedVoxels.size}`)
+        /*
         this.selectedVoxels.forEach((v)=>{
             console.log(v);
-        })
+        })*/
         return true;
     }
 
@@ -660,16 +661,16 @@ export class VoxelObject{
     }
 
     #selectFaceRecursion(v: Vector3, dir: FaceDirection, emptyVoxels: boolean){
-        console.log(`[selectFaceRecursion] iteration: ${v} -`)
+        //console.log(`[selectFaceRecursion] iteration: ${v} -`)
         const possiblyBlockingVoxelCoords = this.#blockingVoxelCoords(v , dir);
         const shouldSkipThisVoxel = emptyVoxels? !this.voxelExists(possiblyBlockingVoxelCoords) || this.isVoxelEmpty(v) || this.selectedVoxels.has(possiblyBlockingVoxelCoords.toString())
         : !this.voxelExists(v) || this.isVoxelEmpty(v) || this.selectedVoxels.has(v.toString());
 
         if(shouldSkipThisVoxel) return;
-        console.log(`[selectFaceRecursion] iteration: ${v} +`)
+        //console.log(`[selectFaceRecursion] iteration: ${v} +`)
         
         const isCurrentVoxelOnSurface = this.isVoxelEmpty(possiblyBlockingVoxelCoords) || !this.voxelExists(possiblyBlockingVoxelCoords);
-        console.log(`isCurrentVoxelOnSurface: ${isCurrentVoxelOnSurface } | for blocking voxel: ${possiblyBlockingVoxelCoords}`)
+        //console.log(`isCurrentVoxelOnSurface: ${isCurrentVoxelOnSurface } | for blocking voxel: ${possiblyBlockingVoxelCoords}`)
         if(!isCurrentVoxelOnSurface) return;
 
         const selectedVoxel = emptyVoxels? possiblyBlockingVoxelCoords : v;

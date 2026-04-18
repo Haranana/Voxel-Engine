@@ -312,7 +312,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         if(!rayResults) return;
 
         const hitVoxel : Vector3 = rayResults.voxelCoords;
-        const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
+        //const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
 
         if(selectSessionStarted()){
             selectSessionRef.current.endCoords = hitVoxel;
@@ -334,11 +334,11 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         
     }
 
-    function handlePointerCancel(e: React.PointerEvent<HTMLCanvasElement>){
+    function handlePointerCancel(_: React.PointerEvent<HTMLCanvasElement>){
         console.log(`[handlePointerCancel]`);
         if(!canvasRef.current) return; 
-        const canvas = canvasRef.current;
-        const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
+        //const canvas = canvasRef.current;
+        //const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
 
         props.selectedObject.clearHighlight();
         props.selectedObject.resetSelect();
@@ -511,12 +511,14 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
+        /*
         const overlayUniformDataView = makeStructuredView(makeShaderDataDefinitions(additionalZShader()).uniforms.uniformData);
+        
         const overlayUniformViewBuffer = device.createBuffer({
             label: 'uniform buffer',
             size: overlayUniformDataView.arrayBuffer.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        });
+        });*/
 
         const bindGroupSelectedObject = device.createBindGroup({
             label: 'bind group for uniform data',
@@ -527,6 +529,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             }]
         })
 
+        /*
         const bindGroupOverlay = device.createBindGroup({
             label: 'bind group for uniform data',
             layout: bindGroupLayout,
@@ -534,7 +537,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 binding: 0,
                 resource: {buffer: overlayUniformViewBuffer},
             }]
-        })
+        })*/
 
         renderDataRef.current.context = context;
         renderDataRef.current.device = device;
@@ -591,7 +594,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         }
         const selectedAreaMesh = props.selectedObject.getSelectedAreaMesh();
 
-        const {vertexData, linesIndices, trianglesIndices, quadsIndices, numVertices} = props.selectedObject.mesh!.getVerticesData();
+        const {vertexData, linesIndices, trianglesIndices, quadsIndices} = props.selectedObject.mesh!.getVerticesData();
         const selectedAreaMeshData = selectedAreaMesh!.getVerticesData();
 
         const vertexDataBuffer = device.createBuffer({
