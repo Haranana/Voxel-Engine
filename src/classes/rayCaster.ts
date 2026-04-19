@@ -4,7 +4,7 @@ import type { Vector2 } from "../math/vector2.type";
 import { Vector3 } from "../math/vector3.type";
 import { Vector4 } from "../math/vector4.type";
 import type { Camera } from "./camera";
-import type { FaceDirection, VoxelObject } from "./voxelObject";
+import { faceDirectionToVector, type FaceDirection, type VoxelObject } from "./voxelObject";
 
 class Ray{
     direction: Vector3;
@@ -19,15 +19,25 @@ class Ray{
     }
 }
 
-//casts ray from given coordinates (in Model space) onto given voxel object
-//returns Vector3 of first non-empty voxel ids or null if none is in path of the ray 
+/*
+casts ray from given coordinates (in Model space) onto given voxel object and returns id of first-non empty voxel
+and direction of the hit
+
+if lastEmpty argument is true function returns last empty voxel before hit, otherwise it returns first non-empty voxel
+
+if hitOnExit argument is true upon exiting bounding box without hitting any voxel the function will return last empty voxel hit,
+otherwise it will return null
+*/
 export function getVoxelFromObject(camera: Camera, 
                             pointSs: Vector2, 
                             obj: VoxelObject,
                             canvasSize: Vector2,
                             objectTransformMatrix: Matrix4,  
                             ndcProjectionMatrix: Matrix4, 
-                            cameraViewMatrix: Matrix4)
+                            cameraViewMatrix: Matrix4,
+                            lastEmpty: boolean = true,
+                            hitOnExit: boolean = true,
+                            )
     : {voxelCoords: Vector3, hitDirection: FaceDirection} | null {
     
     const mvpInversion = ndcProjectionMatrix.multMatrix(cameraViewMatrix).multMatrix(objectTransformMatrix).getInversion();
@@ -182,13 +192,31 @@ export function getVoxelFromObject(camera: Camera,
     
 
     //later it will be modified to calculate only in bounding box
-    //for now just hard stop when reaching some arbitrary large number 
+    //loop condition is temporary as safety
+    //let enteredBoundingBox = false;
+    let LastEmptyVoxel : Vector3 | null = null; 
     while( Math.abs(ray.get(currentRayT).z) < 10000){
         const nextVoxelBoundary  = getNextT(ray, currentRayT, sign);
         currentRayT += (nextVoxelBoundary.minDelta + EPS);
 
-        if(obj.getVoxelFromModelSpacePoint(ray.get(currentRayT))){
-            return {voxelCoords: obj.pointCoordinatesToVexelId(ray.get(currentRayT)), hitDirection:  nextVoxelBoundary.dir};
+        const rayValue = ray.get(currentRayT)
+        const voxelId = obj.pointCoordinatesToVexelId(rayValue);
+        if(obj.voxelExists(voxelId) && obj.isVoxelNonEmpty(voxelId)){ //is in bb and hit non-empty voxel
+            
+            let result : {voxelCoords: Vector3, hitDirection: FaceDirection} | null = {voxelCoords: voxelId, hitDirection: nextVoxelBoundary.dir};
+            if(lastEmpty) result.voxelCoords=result.voxelCoords.addVector(faceDirectionToVector(nextVoxelBoundary.dir));
+            if(!obj.voxelExists(result.voxelCoords)) result = null
+            return result;
+            //const returnId = lastEmpty? obj.voxelExists(voxelId.addVector(faceDirectionToVector(nextVoxelBoundary.dir)))? 
+            //voxelId.addVector(faceDirectionToVector(nextVoxelBoundary.dir)) : null : voxelId
+            //return returnId==null? null : {voxelCoords: returnId!, hitDirection:  nextVoxelBoundary.dir};
+        }else if(obj.voxelExists(voxelId)){ //is in bb and hit empty voxel
+            LastEmptyVoxel = voxelId.copy();
+            continue;
+        }else if(LastEmptyVoxel!=null){ //was in boundingBox but exited it
+            return hitOnExit? {voxelCoords: voxelId.addVector( (faceDirectionToVector(nextVoxelBoundary.dir))), hitDirection: nextVoxelBoundary.dir} : null;
+        }else{ //yet to enter bb
+            continue;
         }
     }
 

@@ -75,6 +75,8 @@ export class VoxelObject{
     selectedAreaMesh: RenderableObject | null = null;
     selectedAreaModified: boolean = false;
 
+    borderColor: Vector4 = new Vector4(160, 130, 210, 255);
+
     constructor(size: Vector3){
         this.size = size;
         this.voxels = Array.from({ length: size.x }, () =>
@@ -289,7 +291,8 @@ export class VoxelObject{
     getBorderMesh(): RenderableObject{
         const out: RenderableObject = new RenderableObject();
         const objectStart : Vector3 = new Vector3(-(this.size.x*this.baseVoxelSize)/2 , -(this.size.y*this.baseVoxelSize)/2, -(this.size.z*this.baseVoxelSize)/2) 
-        const borderColor = new Vector4(255,165,0,255);
+        //const borderColor = new Vector4(255,165,0,255);
+        const borderColor = this.borderColor;
         const voxelVertices : Map<string, Vector3> = new Map();
         let currentVoxelId: number = 0;
         
@@ -780,7 +783,7 @@ export class VoxelObject{
     //returns true if successfuly added or if all voxels were already selected
     //returns false if starting voxel doesn't exist
     selectFace(v: Vector3, dir: FaceDirection, emptyVoxels: boolean = false): boolean{
-        //console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
+        console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
         if(!this.voxelExists(v)) {
             return false;
         }
@@ -788,7 +791,7 @@ export class VoxelObject{
         this.#selectFaceRecursion(v, dir, emptyVoxels);
         this.voxelsModified = true;
         this.selectedAreaModified = true;
-        //console.log(`[selectFace] voxels of given face: ${dir} | length: ${this.selectedVoxels.size}`)
+        console.log(`[selectFace] voxels of given face: ${dir} | length: ${this.selectedVoxels.size}`)
         /*
         this.selectedVoxels.forEach((v)=>{
             console.log(v);
@@ -810,6 +813,23 @@ export class VoxelObject{
                 return v.copy().addVector(new Vector3(0,0,1)); 
             case "NegZ":
                 return v.copy().addVector(new Vector3(0,0,-1));                                                                                
+        }
+    }
+
+    #voxelBehindId(v: Vector3, dir: FaceDirection): Vector3{
+        switch(dir){
+            case "PosX":
+                return v.copy().addVector(new Vector3(-1,0,0)); 
+            case "NegX":
+                return v.copy().addVector(new Vector3(1,0,0)); 
+            case "PosY":
+                return v.copy().addVector(new Vector3(0,-1,0)); 
+            case "NegY":
+                return v.copy().addVector(new Vector3(0,1,0)); 
+            case "PosZ":
+                return v.copy().addVector(new Vector3(0,0,-1)); 
+            case "NegZ":
+                return v.copy().addVector(new Vector3(0,0,1));                                                                                
         }
     }
 
@@ -841,7 +861,8 @@ export class VoxelObject{
     #selectFaceRecursion(v: Vector3, dir: FaceDirection, emptyVoxels: boolean){
         //console.log(`[selectFaceRecursion] iteration: ${v} -`)
         const possiblyBlockingVoxelCoords = this.#blockingVoxelCoords(v , dir);
-        const shouldSkipThisVoxel = emptyVoxels? !this.voxelExists(possiblyBlockingVoxelCoords) || this.isVoxelEmpty(v) || this.selectedVoxels.has(possiblyBlockingVoxelCoords.toString())
+        const voxelBehind = this.#voxelBehindId(v,dir);
+        const shouldSkipThisVoxel = emptyVoxels? (!this.voxelExists(v) ||  this.isVoxelNonEmpty(v) || this.selectedVoxels.has(v.toString()) || (this.voxelExists(voxelBehind) && this.isVoxelEmpty(voxelBehind)))
         : !this.voxelExists(v) || this.isVoxelEmpty(v) || this.selectedVoxels.has(v.toString());
 
         if(shouldSkipThisVoxel) return;
@@ -851,7 +872,7 @@ export class VoxelObject{
         //console.log(`isCurrentVoxelOnSurface: ${isCurrentVoxelOnSurface } | for blocking voxel: ${possiblyBlockingVoxelCoords}`)
         if(!isCurrentVoxelOnSurface) return;
 
-        const selectedVoxel = emptyVoxels? possiblyBlockingVoxelCoords : v;
+        const selectedVoxel = v;
         this.selectedVoxels.add(selectedVoxel.toString());
 
         this.#voxelNeighborsCoords(v, dir).forEach((vs)=>{

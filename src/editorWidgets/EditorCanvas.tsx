@@ -155,7 +155,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         };
     }
 
-    function shootRay(clickPos: Vector2){    
+    function shootRay(clickPos: Vector2, lastEmpty: boolean = false, hitOnExit: boolean = true){    
         if(!canvasRef.current) return; 
         const canvas = canvasRef.current;
         const objectTranslation : Matrix4 = props.objectProperties? Matrices4.translation(props.objectProperties.translation) : Matrices4.identity();
@@ -178,7 +178,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             new Vector3(0, 1, 0)
         );
        
-        return getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix);
+        return getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix, lastEmpty, hitOnExit);
     }
 
     function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>){
@@ -188,7 +188,9 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         //M1 - action
         //M2 - camera move
         if(e.button === 0){
-            const rayResults = shootRay(clickPos);
+            const lastEmpty = props.editMode === "Add";
+            const hitOnExit = true;
+            const rayResults = shootRay(clickPos, lastEmpty , hitOnExit);
             if(!rayResults) return;
 
             const hitVoxel : Vector3 = rayResults.voxelCoords;
@@ -242,7 +244,9 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             
         }else{
 
-        const rayResults = shootRay(clickPos);
+        const lastEmpty = props.editMode === "Add";
+        const hitOnExit = true;   
+        const rayResults = shootRay(clickPos, lastEmpty, hitOnExit);
         if(!rayResults){
             if(props.selectedObject.resetSelect()!==0) props.onSelectedObjectChanged(props.selectedObject.copy());
             
@@ -258,10 +262,10 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         if(selectSessionStarted()){
             if(props.editMode == "Add"){
                 if(props.selectMode=="Voxel"){
-                    props.selectedObject.selectVoxel(hitVoxel.addVector(hitDirection));
+                    props.selectedObject.selectVoxel(hitVoxel);
                     voxelObjectChanged = props.selectedObject.addSelectedVoxels(defaultColor) != 0;
                 }else if(props.selectMode=="Cube"){
-                    selectedAreaChanged = props.selectedObject.selectCube(selectSessionRef.current.startCoords!, hitVoxel.addVector(hitDirection));
+                    selectedAreaChanged = props.selectedObject.selectCube(selectSessionRef.current.startCoords!, hitVoxel);
                 }
             }else if(props.editMode=="Remove"){
                 if(props.selectMode=="Voxel"){
@@ -281,9 +285,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         }else{
             if(props.editMode == "Add"){
                 if(props.selectMode=="Voxel" || props.selectMode=="Cube"){
-                    selectedAreaChanged = props.selectedObject.selectVoxel(hitVoxel.addVector(hitDirection));
+                    selectedAreaChanged = props.selectedObject.selectVoxel(hitVoxel);
                 }else if(props.selectMode=="Face"){
-                    console.log("A?")
                     selectedAreaChanged = props.selectedObject.selectFace(hitVoxel , vectorToFaceDirection(hitDirection), true);
                 }
             }else if(props.editMode=="Remove" || props.editMode=="Paint"){
