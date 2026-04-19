@@ -293,6 +293,8 @@ export default function EditorPage() {
 const objectPropertiesWidget = <ObjectPropertiesWidget
     objectProperties={selectedObjectProperties}
     onPropertiesChange={setSelectedObjectProperties}
+    voxelObject={selectedObject}
+    setVoxelObject={setSelectedObject}
     isOpen={isTransformObjectPropertiesOpen}
     onOpenChange={setIsTransformObjectPropertiesOpen}
 />

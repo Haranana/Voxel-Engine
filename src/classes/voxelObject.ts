@@ -59,6 +59,7 @@ export class VoxelObject{
     //use Vector3.toString() and Vector3.fromString() for conversion
     selectedVoxels: Set<string> = new Set();
    
+    maxSize: Vector3 = new Vector3(256,256,256);
     //size of whole voxelObject
     size : Vector3 = new Vector3(0,0,0);
     
@@ -955,6 +956,50 @@ export class VoxelObject{
     //return copy of voxel in those coordinates or null if there's none
     getVoxelFromModelSpacePoint(v: Vector3) : Voxel | null{
         return this.getVoxel(this.pointCoordinatesToVexelId(v));
+    }
+
+    //changes size of voxel object, according to argument newSize, 
+    //clamped beetwen 0 and private parameter maxSize
+    //returns new size of voxel object
+    resize(newSize: Vector3) : Vector3{
+        const clampedNewSize = new Vector3(
+            clamp({value: newSize.x , min: 0 , max: this.maxSize.x}),
+            clamp({value: newSize.y , min: 0 , max: this.maxSize.y}),
+            clamp({value: newSize.z , min: 0 , max: this.maxSize.z})
+        );
+
+        if(!clampedNewSize.equals(this.size)){
+            
+            const newVoxels: (Voxel | null)[][][] = Array.from({ length: clampedNewSize.x }, () =>
+                Array.from({ length: clampedNewSize.y }, () =>
+                    Array.from({ length: clampedNewSize.z }, () => null)
+                )
+            );
+
+            for(let x = 0; x < Math.min(this.size.x, clampedNewSize.x); x++){
+                for(let y = 0; y < Math.min(this.size.y, clampedNewSize.y); y++){
+                    for(let z = 0; z < Math.min(this.size.z, clampedNewSize.z); z++){
+                        newVoxels[x][y][z] = this.voxels[x][y][z];
+                    }
+                }
+            }
+
+            const newSelectedVoxels = new Set<string>();
+            this.selectedVoxels.forEach(vStr =>{
+                const v = Vector3.fromString(vStr)
+                if(v.x < clampedNewSize.x && v.y < clampedNewSize.y && v.z < clampedNewSize.z){
+                    newSelectedVoxels.add(vStr);
+                }else{
+                    this.selectedAreaModified = true;
+                }
+            })
+
+            this.size = clampedNewSize;
+            this.voxels = newVoxels;
+            this.selectedVoxels = newSelectedVoxels;
+            this.voxelsModified = true;
+        }
+        return this.size;
     }
 
     copy() : VoxelObject{

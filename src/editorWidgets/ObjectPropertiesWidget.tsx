@@ -7,141 +7,236 @@ import type { ObjectProperties } from "../RenderableObjectTypes";
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/16/solid";
 import "../editorWidgets/ExpandableRow.css"
 import "../Editor.css"
+import type { VoxelObject } from "../classes/voxelObject";
 
 export type ObjectPropertiesWidgetProps = {
     objectProperties: ObjectProperties;
     onPropertiesChange: React.Dispatch<React.SetStateAction<ObjectProperties>>;
+
+    voxelObject: VoxelObject;
+    setVoxelObject: React.Dispatch<React.SetStateAction<VoxelObject>>;
+
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
 };
 
 export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProps) {
-    const objectProperties = props.objectProperties;
-    const TriggerIcon = props.isOpen? ChevronDownIcon : ChevronRightIcon;
+    const { objectProperties, voxelObject } = props;
+    const TriggerIcon = props.isOpen ? ChevronDownIcon : ChevronRightIcon;
 
-    const translationXMinValue = -10000;
-    const translationXMaxValue = 10000;
-    const translationYMinValue = -10000;
-    const translationYMaxValue = 10000;
-    const translationZMinValue = -10000;
-    const translationZMaxValue = 10000;
+    const translationMin = -10000;
+    const translationMax = 10000;
 
-    const rotationXMinValue = -10000;
-    const rotationXMaxValue = 10000;
-    const rotationYMinValue = -10000;
-    const rotationYMaxValue = 10000;
-    const rotationZMinValue = -10000;
-    const rotationZMaxValue = 10000;
+    const rotationMin = -10000;
+    const rotationMax = 10000;
+
+    const sizeMin = 0;
+
+    const updateSize = (newSize: Vector3) => {
+        props.setVoxelObject(prev => {
+            const copy = prev.copy();
+            copy.resize(newSize);
+            return copy;
+        });
+    };
 
     return (
         <ExpandableRow
-        trigger = {<button type="button" className="ExpandableRowTriggerButton">
-        <TriggerIcon className="ExpandableRowTriggerButtonIcon" />
-        <p className="ExpandableRowTriggerButtonText">Object properties</p>
-      </button>}
+            trigger={
+                <button type="button" className="ExpandableRowTriggerButton">
+                    <TriggerIcon className="ExpandableRowTriggerButtonIcon" />
+                    <p className="ExpandableRowTriggerButtonText">Object properties</p>
+                </button>
+            }
             isOpen={props.isOpen}
             onOpenChange={props.onOpenChange}
         >
             <div className="ExpandableRowChild ObjectProperties">
+
+                <div className="ExpandableRowChildSection ObjectSizeProperties">
+                    <p>Size</p>
+
+                    <div className="PropertiesRow">
+                        <p className="MutableFieldTitle">X</p>
+                        <MutableNumberField
+                            value={voxelObject.size.x}
+                            minValue={sizeMin}
+                            maxValue={voxelObject.maxSize.x}
+                            step={1}
+                            onStep={(delta) => {
+                                updateSize(new Vector3(
+                                    voxelObject.size.x + delta,
+                                    voxelObject.size.y,
+                                    voxelObject.size.z
+                                ));
+                            }}
+                            onAcceptedChange={(value) => {
+                                updateSize(new Vector3(
+                                    value,
+                                    voxelObject.size.y,
+                                    voxelObject.size.z
+                                ));
+                            }}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectSizeX"}
+                        />
+                    </div>
+
+                    <div className="PropertiesRow">
+                        <p className="MutableFieldTitle">Y</p>
+                        <MutableNumberField
+                            value={voxelObject.size.y}
+                            minValue={sizeMin}
+                            maxValue={voxelObject.maxSize.y}
+                            step={1}
+                            onStep={(delta) => {
+                                updateSize(new Vector3(
+                                    voxelObject.size.x,
+                                    voxelObject.size.y + delta,
+                                    voxelObject.size.z
+                                ));
+                            }}
+                            onAcceptedChange={(value) => {
+                                updateSize(new Vector3(
+                                    voxelObject.size.x,
+                                    value,
+                                    voxelObject.size.z
+                                ));
+                            }}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectSizeY"}
+                        />
+                    </div>
+
+                    <div className="PropertiesRow">
+                        <p className="MutableFieldTitle">Z</p>
+                        <MutableNumberField
+                            value={voxelObject.size.z}
+                            minValue={sizeMin}
+                            maxValue={voxelObject.maxSize.z}
+                            step={1}
+                            onStep={(delta) => {
+                                updateSize(new Vector3(
+                                    voxelObject.size.x,
+                                    voxelObject.size.y,
+                                    voxelObject.size.z + delta
+                                ));
+                            }}
+                            onAcceptedChange={(value) => {
+                                updateSize(new Vector3(
+                                    voxelObject.size.x,
+                                    voxelObject.size.y,
+                                    value
+                                ));
+                            }}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectSizeZ"}
+                        />
+                    </div>
+                </div>
+
                 <div className="ExpandableRowChildSection ObjectTransformProperties">
                     <p>Position</p>
 
-                    <div className="PropertiesRow TransformPropertiesXRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">X</p>
                         <MutableNumberField
                             value={objectProperties.translation.x}
-                            minValue={translationXMinValue}
-                            maxValue={translationXMaxValue}
+                            minValue={translationMin}
+                            maxValue={translationMax}
                             step={20}
                             onStep={(delta) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     translation: new Vector3(
-                                        clamp({value: prev.translation.x + delta, min: translationXMinValue, max: translationXMaxValue}),
+                                        clamp({value: prev.translation.x + delta, min: translationMin, max: translationMax}),
                                         prev.translation.y,
                                         prev.translation.z
                                     ),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     translation: new Vector3(
-                                        clamp({value,min: translationXMinValue,max: translationXMaxValue}),
+                                        clamp({value, min: translationMin, max: translationMax}),
                                         prev.translation.y,
                                         prev.translation.z
                                     ),
                                 }));
                             }}
-                            canIncrease={true}
-                            canDecrease={true}
-                            inputId={"ObjectTransformXValue"}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectTransformX"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesYRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">Y</p>
                         <MutableNumberField
                             value={objectProperties.translation.y}
-                            minValue={translationYMinValue}
-                            maxValue={translationYMaxValue}
+                            minValue={translationMin}
+                            maxValue={translationMax}
                             step={20}
                             onStep={(delta) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     translation: new Vector3(
                                         prev.translation.x,
-                                        clamp({value: prev.translation.y + delta, min: translationYMinValue, max: translationYMaxValue}),
+                                        clamp({value: prev.translation.y + delta, min: translationMin, max: translationMax}),
                                         prev.translation.z
                                     ),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     translation: new Vector3(
                                         prev.translation.x,
-                                        clamp({value,min: translationYMinValue,max: translationYMaxValue}),
+                                        clamp({value, min: translationMin, max: translationMax}),
                                         prev.translation.z
                                     ),
                                 }));
                             }}
-                            canIncrease={true}
-                            canDecrease={true}
-                            inputId={"ObjectTransformYValue"}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectTransformY"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesZRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">Z</p>
                         <MutableNumberField
                             value={objectProperties.translation.z}
-                            minValue={translationZMinValue}
-                            maxValue={translationZMaxValue}
+                            minValue={translationMin}
+                            maxValue={translationMax}
                             step={20}
                             onStep={(delta) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     translation: new Vector3(
                                         prev.translation.x,
                                         prev.translation.y,
-                                        clamp({value: prev.translation.z + delta, min: translationZMinValue, max: translationZMaxValue})
+                                        clamp({value: prev.translation.z + delta, min: translationMin, max: translationMax})
                                     ),
                                 }));
                             }}
                             onAcceptedChange={(value) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     translation: new Vector3(
                                         prev.translation.x,
                                         prev.translation.y,
-                                        clamp({value, min: translationZMinValue,max: translationZMaxValue})
+                                        clamp({value, min: translationMin, max: translationMax})
                                     ),
                                 }));
                             }}
-                            canIncrease={true}
-                            canDecrease={true}
-                            inputId={"ObjectTransformZValue"}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectTransformZ"}
                         />
                     </div>
                 </div>
@@ -149,15 +244,15 @@ export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProp
                 <div className="ExpandableRowChildSection ObjectRotationProperties">
                     <p>Rotation</p>
 
-                    <div className="PropertiesRow TransformPropertiesXRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">X</p>
                         <MutableNumberField
                             value={objectProperties.rotation.x}
-                            minValue={rotationXMinValue}
-                            maxValue={rotationXMaxValue}
+                            minValue={rotationMin}
+                            maxValue={rotationMax}
                             step={1}
                             onStep={(delta) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     rotation: new Vector3(
                                         mod(prev.rotation.x + delta, 360),
@@ -167,7 +262,7 @@ export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProp
                                 }));
                             }}
                             onAcceptedChange={(value) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     rotation: new Vector3(
                                         mod(value, 360),
@@ -176,21 +271,21 @@ export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProp
                                     ),
                                 }));
                             }}
-                            canIncrease={true}
-                            canDecrease={true}
-                            inputId={"ObjectRotateXValue"}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectRotateX"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesYRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">Y</p>
                         <MutableNumberField
                             value={objectProperties.rotation.y}
-                            minValue={rotationYMinValue}
-                            maxValue={rotationYMaxValue}
+                            minValue={rotationMin}
+                            maxValue={rotationMax}
                             step={1}
                             onStep={(delta) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     rotation: new Vector3(
                                         prev.rotation.x,
@@ -200,7 +295,7 @@ export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProp
                                 }));
                             }}
                             onAcceptedChange={(value) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     rotation: new Vector3(
                                         prev.rotation.x,
@@ -209,21 +304,21 @@ export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProp
                                     ),
                                 }));
                             }}
-                            canIncrease={true}
-                            canDecrease={true}
-                            inputId={"ObjectRotateYValue"}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectRotateY"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesZRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">Z</p>
                         <MutableNumberField
                             value={objectProperties.rotation.z}
-                            minValue={rotationZMinValue}
-                            maxValue={rotationZMaxValue}
+                            minValue={rotationMin}
+                            maxValue={rotationMax}
                             step={1}
                             onStep={(delta) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     rotation: new Vector3(
                                         prev.rotation.x,
@@ -233,7 +328,7 @@ export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProp
                                 }));
                             }}
                             onAcceptedChange={(value) => {
-                                props.onPropertiesChange((prev) => ({
+                                props.onPropertiesChange(prev => ({
                                     ...prev,
                                     rotation: new Vector3(
                                         prev.rotation.x,
@@ -242,12 +337,13 @@ export default function ObjectPropertiesWidget(props: ObjectPropertiesWidgetProp
                                     ),
                                 }));
                             }}
-                            canIncrease={true}
-                            canDecrease={true}
-                            inputId={"ObjectRotateZValue"}
+                            canIncrease
+                            canDecrease
+                            inputId={"ObjectRotateZ"}
                         />
                     </div>
                 </div>
+
             </div>
         </ExpandableRow>
     );
