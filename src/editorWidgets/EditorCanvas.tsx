@@ -6,7 +6,7 @@ import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
 import { faceDirectionToVector, vectorToFaceDirection, type FaceDirection, type VoxelObject } from "../classes/voxelObject";
-import { additionalZShader, baseShaderWithWireframe, selectedAreaShader, voxelObjectBorderShader } from "../shaders/baseRenderableObjectShaders";
+import { additionalZShader, baseShaderWithWireframe, borderGridShader, selectedAreaShader, voxelObjectBorderShader } from "../shaders/baseRenderableObjectShaders";
 import { Vector3 } from "../math/vector3.type";
 import { getVoxelFromObject } from "../classes/rayCaster";
 import { Vector2 } from "../math/vector2.type";
@@ -53,6 +53,7 @@ type RenderData = {
     pipeline : GPURenderPipeline | null,
     selectedAreaPipeline: GPURenderPipeline | null,
     objectBorderPipeline: GPURenderPipeline | null,
+    borderGridPipeline: GPURenderPipeline | null,
     uniformDataBuffer : GPUBuffer[] | null,
     bindGroup : GPUBindGroup[] | null,
     uniformView: StructuredView[] | null,
@@ -88,6 +89,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         pipeline : null,
         selectedAreaPipeline: null,
         objectBorderPipeline: null,
+        borderGridPipeline: null,
         uniformDataBuffer : null,
         bindGroup : null,
         uniformView: null,
@@ -396,6 +398,12 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             code: objectBorderShaderCode,
         })
 
+        const borderGridShaderCode = borderGridShader();
+        const borderGridShaderModule = device.createShaderModule({
+            label: `object border grid shader module`,
+            code: borderGridShaderCode,
+        })
+
         const bindGroupLayout = device.createBindGroupLayout({
         entries: [
             {
@@ -508,8 +516,68 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 cullMode: 'front',
             },
             depthStencil: {
-                depthWriteEnabled: false,
+                depthWriteEnabled: true,
                 depthCompare: 'less-equal',
+                format: 'depth24plus',
+            },
+        })
+
+        const borderGridPipeline = device.createRenderPipeline({
+            label: 'Selected object selected area mesh pipeline',
+            layout: pipelineLayout,
+            vertex: {
+                entryPoint: `vertexShader`,
+                module: borderGridShaderModule,
+                buffers:[
+                    {
+                        arrayStride: 6*4,
+                        attributes:[
+                            {
+                                shaderLocation: 0,
+                                offset: 0,
+                                format: 'float32x3',
+                            },
+                            {
+                                shaderLocation: 1,
+                                offset: 12,
+                                format: 'unorm8x4',
+                            },
+                            {
+                                shaderLocation: 2,
+                                offset: 16,
+                                format: 'float32x2',
+                            },
+                        ]
+                    }
+                ]
+            },
+            fragment: {
+                entryPoint: `fragmentShader`,
+                module: borderGridShaderModule,
+                targets: [{
+                format: presentationFormat,
+                blend: {
+                color: {
+                    srcFactor: 'src-alpha',
+                    dstFactor: 'one-minus-src-alpha',
+                    operation: 'add',
+                },
+                alpha: {
+                    srcFactor: 'one',
+                    dstFactor: 'one-minus-src-alpha',
+                    operation: 'add',
+                },
+            },
+                }],
+                
+            },
+            primitive: {
+                topology: "triangle-list",
+                cullMode: 'back',
+            },
+            depthStencil: {
+                depthCompare: 'less',
+                depthWriteEnabled: false,
                 format: 'depth24plus',
             },
         })
@@ -565,7 +633,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: 'none',
+                cullMode: 'back',
             },
             depthStencil: {
                 depthCompare: 'less-equal',
@@ -617,6 +685,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         renderDataRef.current.bindGroup = [bindGroupSelectedObject];
         renderDataRef.current.uniformView = [selectedObjectUniformDataView];
         renderDataRef.current.objectBorderPipeline = objectborderPipeline;
+        renderDataRef.current.borderGridPipeline = borderGridPipeline;
         //renderDataRef.current.vertexBuffer = vertexDataBuffer;
         //renderDataRef.current.verticesAmount = numVertices;
 
@@ -645,6 +714,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const uniformDataBuffer = r.uniformDataBuffer!;
         const bindGroup = r.bindGroup!;
         const uniformView = r.uniformView!;
+        const borderGridPipeline = r.borderGridPipeline!;
         //const vertexBuffer = r.vertexBuffer!;
         //const verticesAmount = r.verticesAmount!;
         
@@ -666,6 +736,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const {vertexData, linesIndices, trianglesIndices, quadsIndices} = props.selectedObject.mesh!.getVerticesData();
         const selectedAreaMeshData = selectedAreaMesh!.getVerticesData();
         const objectBorderMeshData = props.selectedObject.getBorderMesh().getVerticesData();
+        const borderGridMeshData = props.selectedObject.getBorderGrid().getVerticesData();
 
         const vertexDataBuffer = device.createBuffer({
             label: 'vertex data buffer',
@@ -688,6 +759,13 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         });
         device.queue.writeBuffer(objectBorderVertexDataBuffer , 0 , objectBorderMeshData.vertexData);
 
+        const borderGridVertexDataBuffer = device.createBuffer({
+            label: 'vertex data buffer',
+            size: borderGridMeshData.vertexData.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(borderGridVertexDataBuffer , 0 , borderGridMeshData.vertexData);
+
         const trianglesIndexBuffer = device.createBuffer({
             label: 'index data buffer',
             size: trianglesIndices.byteLength,
@@ -708,6 +786,22 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
         });
         device.queue.writeBuffer(objectBorderTrianglesIndexBuffer, 0, objectBorderMeshData.trianglesIndices);
+
+        const borderGridTrianglesIndexBuffer = device.createBuffer({
+            label: 'index data buffer',
+            size: borderGridMeshData.trianglesIndices.byteLength,
+            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(borderGridTrianglesIndexBuffer, 0, borderGridMeshData.trianglesIndices);
+
+        /*
+        const borderGridLinesIndexBuffer = device.createBuffer({
+            label: 'index data buffer',
+            size: borderGridMeshData.linesIndices.byteLength,
+            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(borderGridLinesIndexBuffer, 0, borderGridMeshData.linesIndices);
+        */
 
         const linesIndexBuffer = device.createBuffer({
             label: 'index data buffer',
@@ -811,11 +905,19 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         pass.setBindGroup(0, bindGroup[0]);
         pass.drawIndexed(selectedAreaMeshData.trianglesIndices.length);
 
+        pass.setPipeline(borderGridPipeline);
+        pass.setVertexBuffer(0, borderGridVertexDataBuffer);
+        pass.setIndexBuffer(borderGridTrianglesIndexBuffer, "uint32");
+        pass.setBindGroup(0, bindGroup[0]);
+        pass.drawIndexed(borderGridMeshData.trianglesIndices.length);
+
         pass.setPipeline(objectBorderPipeline);
         pass.setVertexBuffer(0, objectBorderVertexDataBuffer);
         pass.setIndexBuffer(objectBorderTrianglesIndexBuffer, "uint32");
         pass.setBindGroup(0, bindGroup[0]);
         pass.drawIndexed(objectBorderMeshData.trianglesIndices.length);
+
+
         pass.end();
 
         const commandBuffer = encoder.finish();

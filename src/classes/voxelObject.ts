@@ -67,7 +67,8 @@ export class VoxelObject{
     baseVoxelSize = 50;
 
     mesh: RenderableObject | null = null;
-    voxelsModified: boolean = false
+    voxelsModified: boolean = false;
+    borderModified: boolean = false;
     highlightedVoxelColor: Vector4 = new Vector4(160, 130, 210, 255);
     highlightedVoxel: Vector3 | null = null;
 
@@ -77,6 +78,8 @@ export class VoxelObject{
     selectedAreaModified: boolean = false;
 
     borderColor: Vector4 = new Vector4(160, 130, 210, 255);
+    borderGrid: RenderableObject | null = null;
+    borderWire: RenderableObject | null = null;
 
     constructor(size: Vector3){
         this.size = size;
@@ -290,6 +293,9 @@ export class VoxelObject{
     }
 
     getBorderMesh(): RenderableObject{
+        if(this.borderWire){
+            return this.borderWire;
+        }
         const out: RenderableObject = new RenderableObject();
         const objectStart : Vector3 = new Vector3(-(this.size.x*this.baseVoxelSize)/2 , -(this.size.y*this.baseVoxelSize)/2, -(this.size.z*this.baseVoxelSize)/2) 
         //const borderColor = new Vector4(255,165,0,255);
@@ -464,7 +470,8 @@ export class VoxelObject{
         out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
         out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3,currentVoxelId+3, currentVoxelId );
         out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
-    
+        
+        this.borderWire = out;
         return out;
     }
 
@@ -672,6 +679,106 @@ export class VoxelObject{
         this.mesh = out;
         this.voxelsModified = false;
     }
+
+    getBorderGrid(): RenderableObject {
+        if(this.borderGrid){
+            return this.borderGrid;
+        }
+        const out: RenderableObject = new RenderableObject();
+        const objectStart: Vector3 = new Vector3(
+            -(this.size.x * this.baseVoxelSize) / 2,
+            -(this.size.y * this.baseVoxelSize) / 2,
+            -(this.size.z * this.baseVoxelSize) / 2
+        );
+
+        const color = new Vector4(40, 40, 40, 255);
+        const step = this.baseVoxelSize;
+
+        const addQuad = (A: Vector3, B: Vector3, C: Vector3, D: Vector3) => {
+            const currentVoxelId = out.vertices.length;
+            out.vertices.push(
+                { position: A, quadUV: new Vector2(0,0), color },
+                { position: B, quadUV: new Vector2(1,0), color },
+                { position: C, quadUV: new Vector2(1,1), color },
+                { position: D, quadUV: new Vector2(0,1), color }
+            );
+            out.trianglesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId);
+            out.linesIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
+            out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
+        };
+
+        const v = (x: number, y: number, z: number) =>
+            objectStart.addVector(new Vector3(x * step, y * step, z * step));
+
+        for (let x = 0; x < this.size.x; x++) {
+            for (let y = 0; y < this.size.y; y++) {
+                addQuad(
+                    v(x, y, this.size.z),
+                    v(x+1, y, this.size.z),
+                    v(x+1, y+1, this.size.z),
+                    v(x, y+1, this.size.z)
+                );
+            }
+        }
+
+        for (let x = 0; x < this.size.x; x++) {
+            for (let y = 0; y < this.size.y; y++) {
+                addQuad(
+                    v(x+1, y, 0),
+                    v(x, y, 0),
+                    v(x, y+1, 0),
+                    v(x+1, y+1, 0)
+                );
+            }
+        }
+
+        for (let x = 0; x < this.size.x; x++) {
+            for (let z = 0; z < this.size.z; z++) {
+                addQuad(
+                    v(x, 0, z),
+                    v(x+1, 0, z),
+                    v(x+1, 0, z+1),
+                    v(x, 0, z+1)
+                );
+            }
+        }
+
+        for (let x = 0; x < this.size.x; x++) {
+            for (let z = 0; z < this.size.z; z++) {
+                addQuad(
+                    v(x, this.size.y, z+1),
+                    v(x+1, this.size.y, z+1),
+                    v(x+1, this.size.y, z),
+                    v(x, this.size.y, z)
+                );
+            }
+        }
+
+        for (let y = 0; y < this.size.y; y++) {
+            for (let z = 0; z < this.size.z; z++) {
+                addQuad(
+                    v(0, y, z),
+                    v(0, y, z+1),
+                    v(0, y+1, z+1),
+                    v(0, y+1, z)
+                );
+            }
+        }
+
+        for (let y = 0; y < this.size.y; y++) {
+            for (let z = 0; z < this.size.z; z++) {
+                addQuad(
+                    v(this.size.x, y, z+1),
+                    v(this.size.x, y, z),
+                    v(this.size.x, y+1, z),
+                    v(this.size.x, y+1, z+1)
+                );
+            }
+        }
+
+        this.borderGrid = out;
+        return out;
+}
 
     //receives point in this object model space
     //returns id of possible vexel in this object
@@ -998,6 +1105,8 @@ export class VoxelObject{
             this.voxels = newVoxels;
             this.selectedVoxels = newSelectedVoxels;
             this.voxelsModified = true;
+            this.getBorderGrid();
+            this.getBorderMesh();
         }
         return this.size;
     }
