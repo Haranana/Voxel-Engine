@@ -98,6 +98,7 @@ export function baseShaderWithWireframe(){
                                 (widthPx + 1.0) * pixelSpan,
                                 distToEdge);
 
+
     return mix(baseColor, wireColor, wire);
             }
     `
@@ -156,7 +157,12 @@ return `
                                             (widthPx + 1.0) * pixelSpan,
                                             distToEdge);
 
-                return mix(baseColor, wireColor, wire);
+                
+            if (wire < 0.5) {
+                discard;
+            }
+
+            return wireColor;
             }
     `
 }

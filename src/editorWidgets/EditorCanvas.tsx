@@ -562,11 +562,11 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: 'front',
+                cullMode: 'none',
             },
             depthStencil: {
-                depthWriteEnabled: false,
                 depthCompare: 'less-equal',
+                depthWriteEnabled: true,
                 format: 'depth24plus',
             },
         })
