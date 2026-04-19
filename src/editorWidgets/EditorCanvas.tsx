@@ -257,7 +257,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const hitVoxel : Vector3 = rayResults.voxelCoords;
         const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
 
-        let higlightCausedChange = false;
+        //let higlightCausedChange = false;
         let selectedAreaChanged = false;
         let voxelObjectChanged = false;
 
@@ -298,11 +298,11 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                     selectedAreaChanged = props.selectedObject.selectFace(hitVoxel , vectorToFaceDirection(hitDirection));
                 }
             }else{
-                higlightCausedChange = props.selectedObject.highlightVoxel(hitVoxel);
+                //higlightCausedChange = props.selectedObject.highlightVoxel(hitVoxel);
             }
         }
 
-        if(higlightCausedChange || selectedAreaChanged || voxelObjectChanged) {
+        if(selectedAreaChanged || voxelObjectChanged) {
             props.onSelectedObjectChanged(props.selectedObject.copy());
         }
     }
@@ -347,7 +347,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         //const canvas = canvasRef.current;
         //const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
 
-        props.selectedObject.clearHighlight();
+        //props.selectedObject.clearHighlight();
         props.selectedObject.resetSelect();
         resetSelectSession();
         props.onSelectedObjectChanged(props.selectedObject.copy());
@@ -1019,7 +1019,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const dy = cameraMoveSessionRef.current.deltaY;
 
         if (dx !== 0 || dy !== 0) {
-            console.log("[RAF] mouse input detected");
             updatedCamera.yaw -= dx * mouseSensitivity;
             updatedCamera.pitch -=dy * mouseSensitivity;
             updatedCamera.pitch = clamp( {value: updatedCamera.pitch , min: -89, max: 89});

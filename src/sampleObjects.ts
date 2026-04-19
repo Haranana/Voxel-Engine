@@ -19,6 +19,5 @@ export function getBasicSampleVoxelObject(){
         }
     }
 
-    out.rebuildMesh();
     return out;
 }

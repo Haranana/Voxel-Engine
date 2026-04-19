@@ -98,7 +98,7 @@ export class VoxelObject{
     }
 
     shouldRebuildMesh(){
-        return this.voxelsModified || !this.mesh;
+        return !this.mesh;
     }
 
     rebuildSelectedAreaMesh(){
@@ -478,7 +478,7 @@ export class VoxelObject{
     //simple meshing with culling
     //in future probably add greedy meshing for exports
     rebuildMesh(){
-        //console.log(`[rebuildMesh]`);
+        console.log(`[rebuildMesh]`);
         const out: RenderableObject = new RenderableObject();
         const objectStart : Vector3 = new Vector3(-this.size.x/2 , -this.size.y/2, -this.size.z/2) 
         for(let x = 0; x < this.size.x; x++){
@@ -675,9 +675,7 @@ export class VoxelObject{
                 }
             }
         }
-        console.log("[rebuildMesh] done")
         this.mesh = out;
-        this.voxelsModified = false;
     }
 
     getBorderGrid(): RenderableObject {
@@ -819,7 +817,7 @@ export class VoxelObject{
     setVoxel(pos: Vector3, newVoxel: Voxel){
         try{
             this.voxels[pos.x][pos.y][pos.z] = newVoxel;
-            this.voxelsModified = true;
+            this.mesh = null;
             return true;
         }catch(e: any){
             return false;
@@ -829,7 +827,7 @@ export class VoxelObject{
     removeVoxel(pos: Vector3){
         try{
             this.voxels[pos.x][pos.y][pos.z] = null;
-            this.voxelsModified = true;
+            this.mesh = null;
             return true;
         }catch(e: any){
             return false;
@@ -869,14 +867,17 @@ export class VoxelObject{
     }
 
     //adds voxel of given coordinates to set of selected voxels
-    //returns true if successfuly added or if voxel was already selected
-    //returns false if voxel doesn't exist
+    //returns true if successfuly added
+    //returns false if voxel doesn't exist or if voxel was already selected
     selectVoxel(v: Vector3): boolean{
         //console.log(`[selectVoxel] select request for ${v.toString()}`)
         if(this.voxelExists(v)){
+            const vStr = v.toString();
+            if(this.selectedVoxels.has(vStr)){
+                return false;
+            }
             this.resetSelect();
             this.selectedVoxels.add(v.toString());
-            this.voxelsModified = true;
             this.selectedAreaModified = true;
             return true;
             
@@ -897,7 +898,7 @@ export class VoxelObject{
         }
         this.resetSelect();
         this.#selectFaceRecursion(v, dir, emptyVoxels);
-        this.voxelsModified = true;
+        //this.voxelsModified = true;
         this.selectedAreaModified = true;
         console.log(`[selectFace] voxels of given face: ${dir} | length: ${this.selectedVoxels.size}`)
         /*
@@ -1015,7 +1016,7 @@ export class VoxelObject{
                 }
             }
         }
-        this.voxelsModified = true;
+        //this.voxelsModified = true;
         return true;
     }
 
@@ -1104,7 +1105,8 @@ export class VoxelObject{
             this.size = clampedNewSize;
             this.voxels = newVoxels;
             this.selectedVoxels = newSelectedVoxels;
-            this.voxelsModified = true;
+            //this.voxelsModified = true;
+            this.rebuildMesh();
             this.getBorderGrid();
             this.getBorderMesh();
         }
@@ -1120,7 +1122,8 @@ export class VoxelObject{
         );
         out.baseVoxelSize = this.baseVoxelSize;
         out.mesh = this.mesh;
-        out.voxelsModified = this.voxelsModified;
+        //out.voxelsModified = this.voxelsModified;
+        //out.mesh = null
 
         out.selectedVoxels = this.selectedVoxels;
         out.highlightedVoxel = this.highlightedVoxel;
