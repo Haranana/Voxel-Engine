@@ -1,71 +1,46 @@
-import { useEffect, useRef } from "react";
-import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
-import type { ObjectProperties, RenderMode } from "../RenderableObjectTypes";
-import { clamp, degreeToRadians } from "../math/utils";
+import {  useContext, useEffect, useRef } from "react";
+import { type StructuredView } from "webgpu-utils";
+import type { ObjectProperties, RenderOptions } from "../RenderableObjectTypes";
+import {  degreeToRadians } from "../math/utils";
 import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import type { Matrix4 } from "../math/matrix4.type";
 import type { Camera } from "../classes/camera";
-import { faceDirectionToVector, vectorToFaceDirection, type FaceDirection, type VoxelObject } from "../classes/voxelObject";
-import { additionalZShader, baseShaderWithWireframe, borderGridShader, selectedAreaShader, voxelObjectBorderShader } from "../shaders/baseRenderableObjectShaders";
+import { type VoxelObject } from "../classes/voxelObject";
 import { Vector3 } from "../math/vector3.type";
 import { getVoxelFromObject } from "../classes/rayCaster";
 import { Vector2 } from "../math/vector2.type";
-import { Vector4 } from "../math/vector4.type";
 import type { EditMode, SelectMode } from "../EditorPage";
-import { debugPaintColor, defaultColor } from "../sampleObjects";
+import type { Renderer } from "../classes/renderer";
+import type { Scene } from "../classes/scene";
+import { ControllerContext } from "../ControllerContext";
 
 export type EditorCanvasProps = {
+    renderer: Renderer,
+    scene: Scene,
+    onRenderAndSceneInit: ()=>void,
+    renderScene: ()=>void,
     selectedObject: VoxelObject,
     objectProperties: ObjectProperties;
     camera: Camera;
-    onSelectedObjectChanged: (v: VoxelObject) => void;
-    onSelectedCameraChanged: React.Dispatch<React.SetStateAction<Camera>>;
-    renderMode: RenderMode;
     selectMode: SelectMode;
     editMode: EditMode;
 }
 
-/*
-type MatricesCache = {
-        
-        cameraTranslation : Matrix4 | null;
-        cameraScale : Matrix4 | null;
-        cameraRotation : Matrix4 | null;
-        
-        objectTranslation : Matrix4 | null;
-        objectScale : Matrix4 | null;
-        objectRotation: Matrix4 | null;
-        objectTransformMatrix : Matrix4 | null;
-
-        ndcPerspectiveProjectionMatrix : Matrix4 | null; 
-        ndcOrthographicProjectionMatrix: Matrix4 | null;
-        
-        cameraViewMatrix : Matrix4 | null;
-}
-const matricesCache : MatricesCache = {};
-function getCameraTranslation(){
-
-}*/
-
 type RenderData = {
     context : GPUCanvasContext | null,
     device : GPUDevice | null,
+
     pipeline : GPURenderPipeline | null,
     selectedAreaPipeline: GPURenderPipeline | null,
     objectBorderPipeline: GPURenderPipeline | null,
     borderGridPipeline: GPURenderPipeline | null,
+
     uniformDataBuffer : GPUBuffer[] | null,
     bindGroup : GPUBindGroup[] | null,
     uniformView: StructuredView[] | null,
     vertexBuffer: GPUBuffer | null,
-    verticesAmount: number | null,
-    trianglesIndexBuffer: GPUBuffer | null,
-    linesIndexBuffer: GPUBuffer | null,
-    quadsIndexBuffer: GPUBuffer | null,
-    triangleIndicesAmount: number | null,
-    lineIndicesAmount: number | null,
-    quadIndicesAmount: number | null,
-    depthTexture: GPUTexture | null,
+
+    depthTexture: GPUTexture | null
 };
 
 type SelectSession = {
@@ -81,8 +56,9 @@ type CameraMoveSession = {
 }
 
 export default function EditorCanvas(props: EditorCanvasProps) {
+    const controller = useContext(ControllerContext)!;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const initializedRef = useRef(false);
+    //const initializedRef = useRef(false);
     const renderDataRef = useRef<RenderData>({
         context : null,
         device : null,
@@ -94,35 +70,32 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         bindGroup : null,
         uniformView: null,
         vertexBuffer: null,
-        verticesAmount: null,
-        trianglesIndexBuffer:  null,
-        linesIndexBuffer:  null,
-        quadsIndexBuffer: null,
-        triangleIndicesAmount:  null,
-        lineIndicesAmount: null,
-        quadIndicesAmount:  null,
         depthTexture: null,
     });
 
     //stores starting and ending selected object voxel coords
+    /*
     const selectSessionRef = useRef<SelectSession>({
         startCoords: null,
         endCoords: null,
     })
+    
     const selectSessionStarted = ()=>{
         return selectSessionRef.current.startCoords != null;
     }
     const resetSelectSession = ()=>{
         selectSessionRef.current = {startCoords: null, endCoords: null}
-    }
+    }*/
 
     //stores data for moving camera with mouse
+    /*
     const cameraMoveSessionRef = useRef<CameraMoveSession>({
         lastX: null,
         lastY: null,
         deltaX: 0,
         deltaY: 0,
     });
+    
     const cameraMoveSessionStarted = ()=>{
         return cameraMoveSessionRef.current.lastX != null && cameraMoveSessionRef.current.lastY != null;
     }
@@ -132,7 +105,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         lastY: null,
         deltaX: 0,
         deltaY: 0,
-    }}
+    }}*/
 
     const canRender = () => {
         const r = renderDataRef.current;
@@ -183,6 +156,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         return getVoxelFromObject(props.camera, clickPos, props.selectedObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix, lastEmpty, hitOnExit);
     }
 
+    
     function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>){
         if(!canvasRef.current) return; 
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
@@ -190,13 +164,14 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         //M1 - action
         //M2 - camera move
         if(e.button === 0){
+            /*
             const lastEmpty = props.editMode === "Add";
             const hitOnExit = true;
             const rayResults = shootRay(clickPos, lastEmpty , hitOnExit);
             if(!rayResults) return;
 
             const hitVoxel : Vector3 = rayResults.voxelCoords;
-            const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
+            //const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
 
             if(props.selectMode=="Cube"){
                 selectSessionRef.current = {startCoords: null, endCoords: null}
@@ -219,19 +194,20 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 if(voxelObjectChanged || selectedAreaChanged){
                     props.onSelectedObjectChanged(props.selectedObject.copy());
                 }
-            }
+            }*/
         }else if(e.button===2){ 
-            console.log("[handlePointerDown] scroll input detected");
-            cameraMoveSessionRef.current.lastX = clickPos.x;
-            cameraMoveSessionRef.current.lastY = clickPos.y;
+            controller.startCameraMoveSession(clickPos);
         }
       
     }
 
+    
     function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>){
         if(!canvasRef.current) return; 
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
 
+        controller.updateCameraMoveSession(clickPos);
+        /*
         if(cameraMoveSessionStarted()){
             const dx = clickPos.x - cameraMoveSessionRef.current.lastX!;
             const dy = clickPos.y - cameraMoveSessionRef.current.lastY!;
@@ -305,12 +281,15 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         if(selectedAreaChanged || voxelObjectChanged) {
             props.onSelectedObjectChanged(props.selectedObject.copy());
         }
-    }
+    }*/
     }
 
+    
     function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>){
         if(!canvasRef.current) return; 
         const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
+        controller.endCameraMoveSession();
+        /*
         if(cameraMoveSessionStarted()){
             resetCameraMoveSession();
         }
@@ -338,21 +317,19 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         props.selectedObject.resetSelect();
         props.onSelectedObjectChanged(props.selectedObject.copy());
         handlePointerMove(e);
-        
+        */
     }
 
+    /*
     function handlePointerCancel(_: React.PointerEvent<HTMLCanvasElement>){
         console.log(`[handlePointerCancel]`);
         if(!canvasRef.current) return; 
-        //const canvas = canvasRef.current;
-        //const clickPos = new Vector2(getMousePos(canvasRef.current, e).x , getMousePos(canvasRef.current, e).y);
-
-        //props.selectedObject.clearHighlight();
         props.selectedObject.resetSelect();
         resetSelectSession();
         props.onSelectedObjectChanged(props.selectedObject.copy());
-    }
+    }*/
 
+/*
     const initRenderer = async () => {
         console.log('[initRenderer] Starting initialization');
         const adapter = await navigator.gpu?.requestAdapter();
@@ -370,7 +347,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             console.log('[initRenderer] canvas context is null');
             return;
         }
-        console.log('[initRenderer] initialization not interrupted');
 
         const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
         context.configure({
@@ -413,6 +389,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             },
         ],
         });
+
         const pipelineLayout = device.createPipelineLayout({
             bindGroupLayouts: [bindGroupLayout],
         });
@@ -649,15 +626,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
-        /*
-        const overlayUniformDataView = makeStructuredView(makeShaderDataDefinitions(additionalZShader()).uniforms.uniformData);
-        
-        const overlayUniformViewBuffer = device.createBuffer({
-            label: 'uniform buffer',
-            size: overlayUniformDataView.arrayBuffer.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        });*/
-
         const bindGroupSelectedObject = device.createBindGroup({
             label: 'bind group for uniform data',
             layout: bindGroupLayout,
@@ -666,16 +634,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                 resource: {buffer: selectedObjectUniformBuffer},
             }]
         })
-
-        /*
-        const bindGroupOverlay = device.createBindGroup({
-            label: 'bind group for uniform data',
-            layout: bindGroupLayout,
-            entries:[{
-                binding: 0,
-                resource: {buffer: overlayUniformViewBuffer},
-            }]
-        })*/
 
         renderDataRef.current.context = context;
         renderDataRef.current.device = device;
@@ -686,19 +644,11 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         renderDataRef.current.uniformView = [selectedObjectUniformDataView];
         renderDataRef.current.objectBorderPipeline = objectborderPipeline;
         renderDataRef.current.borderGridPipeline = borderGridPipeline;
-        //renderDataRef.current.vertexBuffer = vertexDataBuffer;
-        //renderDataRef.current.verticesAmount = numVertices;
-
-        //renderDataRef.current.triangleIndicesAmount = trianglesIndices.length;
-        //renderDataRef.current.lineIndicesAmount = linesIndices.length;
-        //renderDataRef.current.quadIndicesAmount = quadsIndices.length;
-        //renderDataRef.current.trianglesIndexBuffer = trianglesIndexBuffer;
-        //renderDataRef.current.linesIndexBuffer = linesIndexBuffer;
-        //renderDataRef.current.quadsIndexBuffer = quadsIndexBuffer;
-
         
         if(canRender()) renderVoxelObject();
-    }
+    }*/
+
+        /*
 
     function renderVoxelObject(){
 
@@ -708,6 +658,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const canvas = canvasRef.current!;
         const context = r.context!;
         const device = r.device!;
+
         const pipeline = r.pipeline!;
         const selectedAreaPipeline = r.selectedAreaPipeline!;
         const objectBorderPipeline = r.objectBorderPipeline!;
@@ -715,16 +666,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         const bindGroup = r.bindGroup!;
         const uniformView = r.uniformView!;
         const borderGridPipeline = r.borderGridPipeline!;
-        //const vertexBuffer = r.vertexBuffer!;
-        //const verticesAmount = r.verticesAmount!;
-        
-        //const trianglesIndicesAmount = renderDataRef.current.triangleIndicesAmount! ;
-        //const linesIndicesAmount = renderDataRef.current.lineIndicesAmount!;
-        //const quadsIndicesAmount = renderDataRef.current.quadIndicesAmount!;
-        //const trianglesIndexBuffer = renderDataRef.current.trianglesIndexBuffer!;
-        //const linesIndexBuffer = renderDataRef.current.linesIndexBuffer!;
-        //const quadsIndexBuffer = renderDataRef.current.quadsIndexBuffer!;
-
         let depthTexture = r.depthTexture;
 
         resize(canvas!);
@@ -732,6 +673,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             console.log(`[renderVoxelObject] calling rebuildMesh`);
             props.selectedObject.rebuildMesh();
         }
+
+        //voxel object mesh
         const selectedAreaMesh = props.selectedObject.getSelectedAreaMesh();
         const {vertexData, linesIndices, trianglesIndices, quadsIndices} = props.selectedObject.mesh!.getVerticesData();
         const selectedAreaMeshData = selectedAreaMesh!.getVerticesData();
@@ -793,15 +736,6 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
         });
         device.queue.writeBuffer(borderGridTrianglesIndexBuffer, 0, borderGridMeshData.trianglesIndices);
-
-        /*
-        const borderGridLinesIndexBuffer = device.createBuffer({
-            label: 'index data buffer',
-            size: borderGridMeshData.linesIndices.byteLength,
-            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-        });
-        device.queue.writeBuffer(borderGridLinesIndexBuffer, 0, borderGridMeshData.linesIndices);
-        */
 
         const linesIndexBuffer = device.createBuffer({
             label: 'index data buffer',
@@ -922,27 +856,43 @@ export default function EditorCanvas(props: EditorCanvasProps) {
 
         const commandBuffer = encoder.finish();
         device!.queue.submit([commandBuffer]);
-    }
+    }*/
 
+    /*
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
     let requestedAnimationFrame = 0;
     
-    initRenderer().catch((e) => console.error(e));
+    
+    //initRenderer().catch((e) => console.error(e));
     return () => cancelAnimationFrame(requestedAnimationFrame);
   }, []);
 
   useEffect(()=>{
-    renderVoxelObject();
+    //renderVoxelObject();
   }, [props.objectProperties , props.camera, props.selectedObject])
+    */
 
+useEffect(()=>{
+  const canvas = canvasRef.current;
+  if (!canvas) return;
 
+  const run = async () => {
+    const rendererInitialized = await props.renderer.init(canvas);
+    const sceneInitialized = props.scene.init(canvas);
+    props.scene.setObjectTransformMatrix(props.objectProperties);
+    props.onRenderAndSceneInit();
+  };
+
+  run();
+}, []);
 
   const pressedKeysRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    
 
     const handleKeyDown = (e: KeyboardEvent) => {
       pressedKeysRef.current.add(e.key.toLowerCase());
@@ -960,7 +910,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
-
+/*
     useEffect(() => {
         const handleWheel = (e: WheelEvent) => {
             const zoomSpeed = 0.25;
@@ -980,8 +930,8 @@ export default function EditorCanvas(props: EditorCanvasProps) {
             canvas.removeEventListener("wheel", handleWheel);
         };
 
-    }, []);
-
+    }, []);*/
+/*
   useEffect(() => {
     let animationFrameId: number | null = null;
     let lastTime: number | null = null;
@@ -1041,7 +991,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, []);
+  }, []);*/
 
 
   return (
@@ -1049,10 +999,12 @@ export default function EditorCanvas(props: EditorCanvasProps) {
         <canvas
         ref={canvasRef}
         onContextMenu={(e)=>e.preventDefault()}
+        
         onPointerDown={(e) => handlePointerDown(e)}
         onPointerUp={(e)=>handlePointerUp(e)}
-        onPointerCancel={(e)=>handlePointerCancel(e)}
+        //onPointerCancel={(e)=>handlePointerCancel(e)}
         onPointerMove={e=>handlePointerMove(e)}
+        
         className="EditorMainCanvas"
         />
     </div>

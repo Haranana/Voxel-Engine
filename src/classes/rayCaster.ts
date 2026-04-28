@@ -28,7 +28,7 @@ if lastEmpty argument is true function returns last empty voxel before hit, othe
 if hitOnExit argument is true upon exiting bounding box without hitting any voxel the function will return last empty voxel hit,
 otherwise it will return null
 */
-export function getVoxelFromObject(camera: Camera, 
+export function getVoxelFromObject(_: Camera, 
                             pointSs: Vector2, 
                             obj: VoxelObject,
                             canvasSize: Vector2,

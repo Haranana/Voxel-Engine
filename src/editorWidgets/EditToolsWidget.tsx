@@ -1,6 +1,5 @@
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/16/solid";
-import type { ActionButtonData } from "./ActionButtonsPanel";
-import { ExpandableRow, type ExpandableRowProps } from "./ExpandableRow";
+import { ExpandableRow } from "./ExpandableRow";
 export type EditToolsWidgetProps = {
     buttonPanel: React.ReactNode;
     isOpen: boolean;

@@ -1,80 +1,23 @@
-import React from "react";
+import { useContext } from "react";
 import { ExpandableRow } from "./ExpandableRow";
 import { MutableNumberField } from "./MutableNumberField";
 import type { Camera, ProjectionType } from "../classes/camera";
-import { Vector3 } from "../math/vector3.type";
-import { clamp, mod } from "../math/utils";
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/16/solid";
 import "../editorWidgets/ExpandableRow.css";
+import { ControllerContext } from "../ControllerContext";
 
 export type CameraPropertiesProps = {
     camera: Camera;
-    onCameraChange: React.Dispatch<React.SetStateAction<Camera>>;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
+    cameraVersion: number;
 };
 
 export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
     const camera = props.camera;
+    const controller = useContext(ControllerContext)!;
 
     const TriggerIcon = props.isOpen ? ChevronDownIcon : ChevronRightIcon;
-
-    const fovYMinValue = 1;
-    const fovYMaxValue = 179;
-
-    const nearMinValue = 0.001;
-    const nearMaxValue = 1000;
-
-    const farMinValue = 0.001;
-    const farMaxValue = 5000;
-
-    const distanceMinValue = 0;
-    const distanceMaxValue = 10000;
-
-    const pitchMinValue = -89;
-    const pitchMaxValue = 89;
-    const yawMinValue = 0;
-    const yawMaxValue = 360;
-
-    const onProjectionTypeChange = (newVal: ProjectionType) => {
-        props.onCameraChange((prev) => ({
-            ...prev,
-            projectionType: newVal,
-        }));
-    };
-
-    const onFovYAcceptedChange = (newVal: number) => {
-        props.onCameraChange((prev) => ({
-            ...prev,
-            fovY: clamp({ value: newVal, min: fovYMinValue, max: fovYMaxValue }),
-        }));
-    };
-
-    const onNearAcceptedChange = (newVal: number) => {
-        props.onCameraChange((prev) => {
-            const clampedNear = clamp({ value: newVal, min: nearMinValue, max: nearMaxValue });
-            const fixedFar = clampedNear >= prev.far ? clampedNear + 0.001 : prev.far;
-
-            return {
-                ...prev,
-                near: clampedNear,
-                far: clamp({ value: fixedFar, min: farMinValue, max: farMaxValue }),
-            };
-        });
-    };
-
-    const onFarAcceptedChange = (newVal: number) => {
-        props.onCameraChange((prev) => {
-            const clampedFar = clamp({ value: newVal, min: farMinValue, max: farMaxValue });
-            const fixedNear = clampedFar <= prev.near ? Math.max(nearMinValue, clampedFar - 0.001) : prev.near;
-
-            return {
-                ...prev,
-                near: clamp({ value: fixedNear, min: nearMinValue, max: nearMaxValue }),
-                far: clampedFar,
-            };
-        });
-    };
 
     return (
         <ExpandableRow
@@ -96,7 +39,11 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         <select
                             className="Input"
                             value={camera.projectionType}
-                            onChange={(e) => onProjectionTypeChange(e.target.value as ProjectionType)}
+                            onChange={(e) =>
+                                controller.setCameraProjectionType(
+                                    e.target.value as ProjectionType
+                                )
+                            }
                         >
                             <option value="perspective">perspective</option>
                             <option value="orthographic">orthographic</option>
@@ -107,22 +54,15 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         <p className="MutableFieldTitle">Fov Y</p>
                         <MutableNumberField
                             value={camera.fovY}
-                            minValue={fovYMinValue}
-                            maxValue={fovYMaxValue}
+                            minValue={controller.cameraFovYMinValue}
+                            maxValue={controller.cameraFovYMaxValue}
                             step={1}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    fovY: clamp({
-                                        value: prev.fovY + delta,
-                                        min: fovYMinValue,
-                                        max: fovYMaxValue,
-                                    }),
-                                }));
-                            }}
-                            onAcceptedChange={onFovYAcceptedChange}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraFovY(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraFovY(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraFovYValue"}
                         />
                     </div>
@@ -131,32 +71,15 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         <p className="MutableFieldTitle">Near</p>
                         <MutableNumberField
                             value={camera.near}
-                            minValue={nearMinValue}
-                            maxValue={nearMaxValue}
+                            minValue={controller.cameraNearMinValue}
+                            maxValue={controller.cameraNearMaxValue}
                             step={1}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => {
-                                    const clampedNear = clamp({
-                                        value: prev.near + delta,
-                                        min: nearMinValue,
-                                        max: nearMaxValue,
-                                    });
-                                    const fixedFar = clampedNear >= prev.far ? clampedNear + 0.001 : prev.far;
-
-                                    return {
-                                        ...prev,
-                                        near: clampedNear,
-                                        far: clamp({
-                                            value: fixedFar,
-                                            min: farMinValue,
-                                            max: farMaxValue,
-                                        }),
-                                    };
-                                });
-                            }}
-                            onAcceptedChange={onNearAcceptedChange}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraNear(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraNear(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraNearValue"}
                         />
                     </div>
@@ -165,35 +88,15 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         <p className="MutableFieldTitle">Far</p>
                         <MutableNumberField
                             value={camera.far}
-                            minValue={farMinValue}
-                            maxValue={farMaxValue}
+                            minValue={controller.cameraFarMinValue}
+                            maxValue={controller.cameraFarMaxValue}
                             step={1}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => {
-                                    const clampedFar = clamp({
-                                        value: prev.far + delta,
-                                        min: farMinValue,
-                                        max: farMaxValue,
-                                    });
-                                    const fixedNear =
-                                        clampedFar <= prev.near
-                                            ? Math.max(nearMinValue, clampedFar - 0.001)
-                                            : prev.near;
-
-                                    return {
-                                        ...prev,
-                                        near: clamp({
-                                            value: fixedNear,
-                                            min: nearMinValue,
-                                            max: nearMaxValue,
-                                        }),
-                                        far: clampedFar,
-                                    };
-                                });
-                            }}
-                            onAcceptedChange={onFarAcceptedChange}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraFar(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraFar(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraFarValue"}
                         />
                     </div>
@@ -206,31 +109,15 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         <p className="MutableFieldTitle">Distance</p>
                         <MutableNumberField
                             value={camera.distance}
-                            minValue={distanceMinValue}
-                            maxValue={distanceMaxValue}
+                            minValue={controller.cameraDistanceMinValue}
+                            maxValue={controller.cameraDistanceMaxValue}
                             step={20}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    distance: clamp({
-                                        value: prev.distance + delta,
-                                        min: distanceMinValue,
-                                        max: distanceMaxValue,
-                                    }),
-                                }));
-                            }}
-                            onAcceptedChange={(value) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    distance: clamp({
-                                        value,
-                                        min: distanceMinValue,
-                                        max: distanceMaxValue,
-                                    }),
-                                }));
-                            }}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraDistance(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraDistance(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraDistanceValue"}
                         />
                     </div>
@@ -239,23 +126,15 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         <p className="MutableFieldTitle">Pitch</p>
                         <MutableNumberField
                             value={camera.pitch}
-                            minValue={pitchMinValue}
-                            maxValue={pitchMaxValue}
+                            minValue={controller.cameraPitchMinValue}
+                            maxValue={controller.cameraPitchMaxValue}
                             step={1}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    pitch: clamp({value: prev.pitch + delta, min: pitchMinValue, max: pitchMaxValue }), 
-                                }));
-                            }}
-                            onAcceptedChange={(value) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    pitch: value,
-                                }));
-                            }}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraPitch(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraPitch(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraPitchValue"}
                         />
                     </div>
@@ -264,23 +143,15 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         <p className="MutableFieldTitle">Yaw</p>
                         <MutableNumberField
                             value={camera.yaw}
-                            minValue={yawMinValue}
-                            maxValue={yawMaxValue}
+                            minValue={controller.cameraYawMinValue}
+                            maxValue={controller.cameraYawMaxValue}
                             step={1}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    yaw: mod(prev.yaw + delta, 360),
-                                }));
-                            }}
-                            onAcceptedChange={(value) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    yaw: mod(value, 360),
-                                }));
-                            }}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraYaw(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraYaw(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraYawValue"}
                         />
                     </div>
@@ -289,95 +160,47 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                 <div className="CameraTargetProperties ExpendableRowChildSection">
                     <p>Target</p>
 
-                    <div className="PropertiesRow TransformPropertiesXRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">X</p>
                         <MutableNumberField
                             value={camera.target.x}
                             step={20}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    target: new Vector3(
-                                        prev.target.x + delta,
-                                        prev.target.y,
-                                        prev.target.z
-                                    ),
-                                }));
-                            }}
-                            onAcceptedChange={(value) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    target: new Vector3(
-                                        value,
-                                        prev.target.y,
-                                        prev.target.z
-                                    ),
-                                }));
-                            }}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraTargetX(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraTargetX(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraTargetXValue"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesYRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">Y</p>
                         <MutableNumberField
                             value={camera.target.y}
                             step={20}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    target: new Vector3(
-                                        prev.target.x,
-                                        prev.target.y + delta,
-                                        prev.target.z
-                                    ),
-                                }));
-                            }}
-                            onAcceptedChange={(value) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    target: new Vector3(
-                                        prev.target.x,
-                                        value,
-                                        prev.target.z
-                                    ),
-                                }));
-                            }}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraTargetY(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraTargetY(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraTargetYValue"}
                         />
                     </div>
 
-                    <div className="PropertiesRow TransformPropertiesZRow">
+                    <div className="PropertiesRow">
                         <p className="MutableFieldTitle">Z</p>
                         <MutableNumberField
                             value={camera.target.z}
                             step={20}
-                            onStep={(delta) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    target: new Vector3(
-                                        prev.target.x,
-                                        prev.target.y,
-                                        prev.target.z + delta
-                                    ),
-                                }));
-                            }}
-                            onAcceptedChange={(value) => {
-                                props.onCameraChange((prev) => ({
-                                    ...prev,
-                                    target: new Vector3(
-                                        prev.target.x,
-                                        prev.target.y,
-                                        value
-                                    ),
-                                }));
-                            }}
-                            canIncrease={true}
-                            canDecrease={true}
+                            onStep={(delta) => controller.addCameraTargetZ(delta)}
+                            onAcceptedChange={(value) =>
+                                controller.setCameraTargetZ(value)
+                            }
+                            canIncrease
+                            canDecrease
                             inputId={"CameraTargetZValue"}
                         />
                     </div>

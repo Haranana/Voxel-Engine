@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { makeShaderDataDefinitions, makeStructuredView } from "webgpu-utils";
 
 export default function WebGPUTester() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -75,6 +74,7 @@ export default function WebGPUTester() {
         }
     };
 
+    /*
    const drawTriangle = async () => {
 
     const adapter = await navigator.gpu?.requestAdapter();
@@ -102,7 +102,7 @@ export default function WebGPUTester() {
 
     const baseShaderModule = device.createShaderModule({
     label: 'our hardcoded red triangle shaders',
-    code: /* wgsl */ `
+    code: `
       @vertex fn vs(
         @builtin(vertex_index) vertexIndex : u32
       ) -> @builtin(position) vec4f {
@@ -320,7 +320,7 @@ export default function WebGPUTester() {
 
     const baseShaderModule = device.createShaderModule({
     label: 'pattern triangle shaders',
-    code: /* wgsl */ `
+    code: `
 
         struct VertexShaderOutput{
             @builtin(position) position: vec4f,
@@ -874,7 +874,7 @@ export default function WebGPUTester() {
         }
         render();
     }
-
+*/
     const drawManyCircles = async () => {
         //get adapter and device
         const adapter = await navigator.gpu.requestAdapter();
@@ -1007,7 +1007,7 @@ export default function WebGPUTester() {
         //const defs = makeShaderDataDefinitions(code);
         //const staticDataView = makeStructuredView(defs.storages.staticData);
         //const dynamicDataView = makeStructuredView(defs.storages.dynamicData);
-        const positionBufferSize = 2 * 4;
+        //const positionBufferSize = 2 * 4;
         const offsetBufferSize = 2 * 4;
         const colorBufferSize = 4 * 4;
         const scaleBufferSize = 2 * 4;

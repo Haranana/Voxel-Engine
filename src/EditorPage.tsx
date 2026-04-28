@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import "../src/Editor.css";
 import EditorCanvas from "./editorWidgets/EditorCanvas";
-import { type RenderMode, type ObjectProperties } from "./RenderableObjectTypes";
+import { type ObjectProperties } from "./RenderableObjectTypes";
 import { Vector3 } from "./math/vector3.type";
 import type { Camera } from "./classes/camera";
 import CameraPropertiesWidget from "./editorWidgets/CameraPropertiesWidget";
@@ -10,12 +10,12 @@ import { getBasicSampleVoxelObject } from "./sampleObjects";
 import ResizableContainer, {
   type ResizableContainerConsts,
 } from "./editorWidgets/ResizableContainer";
-import ObjectPropertiesWidget from "./editorWidgets/ObjectPropertiesWidget";
 import { ActionButtonsPanel, type ActionButtonData } from "./editorWidgets/ActionButtonsPanel";
-import { ExpandableRow } from "./editorWidgets/ExpandableRow";
 import { EditToolsWidget } from "./editorWidgets/EditToolsWidget";
 import { SelectToolsWidget } from "./editorWidgets/SelectToolsWidget";
-import { mod } from "./math/utils";
+import { Scene } from "./classes/scene";
+import { Renderer } from "./classes/renderer";
+import { ControllerContext } from "./ControllerContext";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -34,20 +34,67 @@ export type EditMode =
 | "None"
 
 export default function EditorPage() {
-  const [selectedObjectProperties, setSelectedObjectProperties] =
-    useState<ObjectProperties>({
+  const controller = useContext(ControllerContext)!;
+
+  //states for updating widgets when controller changes some data
+  const [cameraPropertiesVersion, setCameraPropertiesVersion] = useState<number>(0);
+  function onCameraUpdated(){
+    console.log("Less go!");
+    setCameraPropertiesVersion(prev=>prev+1);
+  }
+
+  const [selectToolsPropertiesVersion, setSelectToolsPropertiesVersion] = useState<number>(0);
+  function onSelectToolsUpdated(){
+    setCameraPropertiesVersion(prev=>prev+1);
+  }
+
+    const [editToolsPropertiesVersion, setEditToolsPropertiesVersion] = useState<number>(0);
+  function onEditToolsUpdated(){
+    setCameraPropertiesVersion(prev=>prev+1);
+  }
+
+  const selectedObjectPropertiesRef =
+    useRef<ObjectProperties>({
       translation: new Vector3(0, 0, -500),
       scale: new Vector3(1, 1, 1),
       rotation: new Vector3(0, 0, 0),
     });
 
-  const [selectedObject, setSelectedObject] = useState<VoxelObject>(
+  const selectedObjectRef = useRef<VoxelObject>(
     getBasicSampleVoxelObject()
   );
-  const [selectedRenderMode, _] =
-    useState<RenderMode>("TriangleWireframe");
+  const selectedCameraRef = useRef<Camera>({
+    fovY: 90,
+    near: 0.1,
+    far: 5000,
+    transform: {
+      translation: new Vector3(0, 0, 0),
+      scale: new Vector3(1, 1, 1),
+      rotation: new Vector3(0, 0, 0),
+    },
+    projectionType: "perspective",
+    distance: 500,
+    target: new Vector3(0,0,-500),
+    pitch: 0,
+    yaw: 0,
+  });
+  /*
+  const [renderOptions, _] = useState<RenderOptions>({
+    voxels: true,
+    objectGrid: true,
+    borderWire: true,
+    borderGrid: true,
+  });*/
 
-
+  const sceneRef = useRef<Scene>(new Scene(selectedObjectRef.current, selectedCameraRef.current));
+  const rendererRef = useRef<Renderer>(new Renderer());
+  
+  useEffect(()=>{
+    if(selectedCameraRef.current==null) return;
+    controller.init(selectedCameraRef.current, rerenderScene);
+    controller.onCameraModified = onCameraUpdated;
+  },[]);
+  
   const bodyHorizontalRef = useRef<HTMLDivElement | null>(null);
   const bodyVerticalRef = useRef<HTMLDivElement | null>(null);
 
@@ -101,23 +148,6 @@ export default function EditorPage() {
   const [rightPanelWidth, setRightPanelWidth] = useState(200);
   const [topPanelHeight, setTopPanelHeight] = useState(50);
   const [bottomPanelHeight, setBottomPanelHeight] = useState(50);
-
-  const [selectedCamera, setSelectedCamera] = useState<Camera>({
-    fovY: 90,
-    near: 0.1,
-    far: 5000,
-    transform: {
-      translation: new Vector3(0, 0, 0),
-      scale: new Vector3(1, 1, 1),
-      rotation: new Vector3(0, 0, 0),
-    },
-    projectionType: "perspective",
-    distance: 500,
-    target: new Vector3(0,0,-500),
-    pitch: 0,
-    yaw: 0,
-  });
-
 
   const onLeftPanelWidthChange = (w: number) => {
     const declaredClamped = clamp(w, leftPanelData.minWidth, leftPanelData.maxWidth);
@@ -279,32 +309,46 @@ export default function EditorPage() {
     bottomPanelData,
   ]);
 
+  const onRenderAndSceneInit = () => {
+    if(!sceneRef.current.initialized || !rendererRef.current.initialized) return;
+    rerenderScene();
+  }
+
+  //scene rerender
+  let rerenderOrderedRef = useRef<boolean>(false);
+  const rerenderScene = useCallback(() => {
+  if (
+    rerenderOrderedRef.current ||
+    !sceneRef.current.initialized ||
+    !rendererRef.current.initialized
+  ) return;
+
+  rerenderOrderedRef.current = true;
+  
+  requestAnimationFrame(() => {
+    rendererRef.current.renderScene(sceneRef.current);
+    rerenderOrderedRef.current = false;
+  });
+}, []);
 
 
-  const onSelectedObjectChanged = (newObject: VoxelObject) => {
-    setSelectedObject(newObject);
-  };
-
-  const onSelectedCameraChanged = (c: Camera) => {
-    setSelectedCamera(c);
-  };
-
+  /*
   const [isTransformObjectPropertiesOpen, setIsTransformObjectPropertiesOpen] = useState<boolean>(false);
-const objectPropertiesWidget = <ObjectPropertiesWidget
+  const objectPropertiesWidget = <ObjectPropertiesWidget
     objectProperties={selectedObjectProperties}
     onPropertiesChange={setSelectedObjectProperties}
     voxelObject={selectedObject}
     setVoxelObject={setSelectedObject}
     isOpen={isTransformObjectPropertiesOpen}
     onOpenChange={setIsTransformObjectPropertiesOpen}
-/>
+  />*/
   
   const [isCameraPropertiesWidgetOpen, setIsCameraPropertiesWidgetOpen] = useState<boolean>(false);
   const cameraPropertiesWidget : React.ReactNode = <CameraPropertiesWidget
-    camera={selectedCamera}
-    onCameraChange={setSelectedCamera}
+    camera={selectedCameraRef.current}
     isOpen={isCameraPropertiesWidgetOpen}
     onOpenChange={setIsCameraPropertiesWidgetOpen}
+    cameraVersion={cameraPropertiesVersion}
   />
 
   const [currentSelectionType , setCurrentSelectionType] = useState<SelectMode>("Voxel");
@@ -329,15 +373,16 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
       disabled: currentSelectionType==="Face",
     },
   ];
+
   const selectToolsButtons : React.ReactNode = <ActionButtonsPanel
     buttons={selectToolsButton}
   />
+
   const selectToolsWidget : React.ReactNode = <SelectToolsWidget
     buttonPanel = {selectToolsButtons}
     isOpen = {isSelectToolsWidgetOpen}
     onOpenChange={setIsSelectToolsWidgetOpen}
   />
-
 
   const [currentEditType, setCurrentEditType] = useState<EditMode>("Add");
   const [isEditToolsWidgetOpen, setIsEditToolsWidgetOpen] = useState<boolean>(false);
@@ -373,9 +418,11 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
       disabled: currentEditType==="None",
     },
   ];
+
   const editToolsButtons : React.ReactNode = <ActionButtonsPanel
     buttons={editToolsButton}
   />
+
   const editToolsWidget : React.ReactNode = <EditToolsWidget
     buttonPanel = {editToolsButtons}
     isOpen = {isEditToolsWidgetOpen}
@@ -385,7 +432,6 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
   return (
     <div className="EditorPage">
       <div className="EditorNav"></div>
-
       <div className="EditorBody">
         <div className="EditorBodyHorizontal" ref={bodyHorizontalRef}>
           <div className="EditorBodyLeft">
@@ -407,7 +453,7 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
           <div className="EditorBodyVertical" ref={bodyVerticalRef}>
             <div className="EditorBodyTop">
               <ResizableContainer
-                children={<p>Top toolbar placeholder</p>}
+                children={<p></p>}
                 width={null}
                 height={topPanelHeight}
                 onWidthChange={null}
@@ -421,20 +467,24 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
 
             <div className="EditorBodyCenter">
               <EditorCanvas
-                objectProperties={selectedObjectProperties}
-                camera={selectedCamera}
-                onSelectedObjectChanged={onSelectedObjectChanged}
-                onSelectedCameraChanged={setSelectedCamera}
-                selectedObject={selectedObject}
-                renderMode={selectedRenderMode}
-                selectMode={currentSelectionType}
-                editMode={currentEditType}
+              renderer={rendererRef.current}
+              scene={sceneRef.current}
+              renderScene = {rerenderScene}
+              onRenderAndSceneInit={onRenderAndSceneInit}
+              objectProperties={selectedObjectPropertiesRef.current}
+              camera={selectedCameraRef.current}
+              //onSelectedObjectChanged={onSelectedObjectChanged}
+              //onSelectedCameraChanged={setSelectedCamera}
+              selectedObject={selectedObjectRef.current}
+              //renderOptions={renderOptions}
+              selectMode={currentSelectionType}
+              editMode={currentEditType}
               />
             </div>
 
             <div className="EditorBodyBottom">
               <ResizableContainer
-                children={<p>Bottom toolbar placeholder</p>}
+                children={<p></p>}
                 width={null}
                 height={bottomPanelHeight}
                 onWidthChange={null}
@@ -459,7 +509,7 @@ const objectPropertiesWidget = <ObjectPropertiesWidget
               hasTopHandle={false}
             >
               <div className="ResizableContainerChildWrapper">
-              {objectPropertiesWidget}
+              {/*{objectPropertiesWidget}*/}
               {cameraPropertiesWidget}
               {selectToolsWidget}
               {editToolsWidget}

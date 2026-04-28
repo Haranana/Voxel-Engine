@@ -1,4 +1,4 @@
-import type { Vector2 } from "./math/vector2.type";
+
 import type { Vector3 } from "./math/vector3.type";
 
 export type ObjectProperties = {
@@ -7,4 +7,9 @@ export type ObjectProperties = {
     rotation: Vector3,
 }
 
-export type RenderMode = "Raster" | "TriangleWireframe" | "QuadWireframe"
+export type RenderOptions = {
+    voxels: boolean;
+    objectGrid: boolean;
+    borderWire: boolean;
+    borderGrid: boolean;
+}
