@@ -1,9 +1,11 @@
 import { Matrices4, PerspectiveMatrices } from "../math/matrices";
 import { Matrix4 } from "../math/matrix4.type";
 import { degreeToRadians } from "../math/utils";
+import { Vector2 } from "../math/vector2.type";
 import { Vector3 } from "../math/vector3.type";
 import type { ObjectProperties } from "../RenderableObjectTypes";
 import type { Camera } from "./camera";
+import { getVoxelFromObject } from "./rayCaster";
 import { VoxelObject } from "./voxelObject";
 export type RenderSceneOptions = {
     borderWire: boolean,
@@ -14,7 +16,6 @@ export class Scene{
 
     #voxelObject: VoxelObject = new VoxelObject(new Vector3(0,0,0));
     #camera: Camera
-    #cameraViewMatrix: Matrix4 = Matrices4.identity()
     #objectTransformMatrix: Matrix4 = Matrices4.identity();
     #perspectiveNdcProjectionMatrix: Matrix4 =Matrices4.identity();
     #orthoNdcProjectionMatrix: Matrix4 = Matrices4.identity();
@@ -22,8 +23,8 @@ export class Scene{
     initialized: boolean = false
     
     options: RenderSceneOptions = {
-        borderWire: false,
-        borderGrid: false,
+        borderWire: true,
+        borderGrid: true,
         voxelObjectsGrid: false,
     };
 
@@ -40,16 +41,6 @@ export class Scene{
         canvas.width = Math.floor(canvas.clientWidth * dpr);
         canvas.height = Math.floor(canvas.clientHeight * dpr);
 
-        const eye = new Vector3(
-            this.#camera.target.x + this.#camera.distance * Math.cos(degreeToRadians(this.#camera.pitch)) * Math.sin(degreeToRadians(this.#camera.yaw)),
-            this.#camera.target.y + this.#camera.distance * Math.sin(degreeToRadians(this.#camera.pitch)),
-            this.#camera.target.z + this.#camera.distance * Math.cos(degreeToRadians(this.#camera.pitch)) * Math.cos(degreeToRadians(this.#camera.yaw)),
-        );
-        this.#cameraViewMatrix = PerspectiveMatrices.lightView(
-            eye,
-            this.#camera.target,
-            new Vector3(0, 1, 0)
-        );
         this.#perspectiveNdcProjectionMatrix = PerspectiveMatrices.PerspectiveProjection(
             degreeToRadians(this.#camera.fovY), this.#camera.near, this.#camera.far, this.#canvas.width/this.#canvas.height);
         this.#orthoNdcProjectionMatrix = PerspectiveMatrices.orthogonalProjection(
@@ -59,18 +50,7 @@ export class Scene{
         return true;
     }
     
-    #setCameraView(){
-        const eye = new Vector3(
-            this.#camera.target.x + this.#camera.distance * Math.cos(degreeToRadians(this.#camera.pitch)) * Math.sin(degreeToRadians(this.#camera.yaw)),
-            this.#camera.target.y + this.#camera.distance * Math.sin(degreeToRadians(this.#camera.pitch)),
-            this.#camera.target.z + this.#camera.distance * Math.cos(degreeToRadians(this.#camera.pitch)) * Math.cos(degreeToRadians(this.#camera.yaw)),
-        );
-        this.#cameraViewMatrix = PerspectiveMatrices.lightView(
-            eye,
-            this.#camera.target,
-            new Vector3(0, 1, 0)
-        );
-    }
+
 
     setNdcProjectionMatrices() : boolean{
         if(!this.initialized) return false
@@ -111,10 +91,12 @@ export class Scene{
     setCamera(c: Camera){
         if(!this.initialized) return false;
         this.#camera = c;
-        this.#setCameraView();
         return true;
     }
 
+    getCanvasRef(){
+        return this.#canvas;
+    }
 
     getCameraView(): Matrix4{
          const eye = new Vector3(
@@ -138,6 +120,30 @@ export class Scene{
 
     getObjectTransformMatrix(): Matrix4{
         return this.#objectTransformMatrix;
+    }
+
+    shootRay(clickPos: Vector2, lastEmpty: boolean = false, hitOnExit: boolean = true){    
+        if(!this.initialized) return; 
+        const canvas = this.#canvas!;
+        const objectTransformMatrix = this.#objectTransformMatrix;
+        const ndcProjectionMatrix = this.#camera.projectionType==="orthographic"?
+            PerspectiveMatrices.orthogonalProjection(-canvas.width/2, canvas.width/2,-canvas.height/2, canvas.height/2, this.#camera.near, this.#camera.far) 
+            : PerspectiveMatrices.PerspectiveProjection(degreeToRadians(this.#camera.fovY), this.#camera.near, this.#camera.far, canvas.width/canvas.height);
+        
+        
+         const eye = new Vector3(
+            this.#camera.target.x + this.#camera.distance * Math.cos(degreeToRadians(this.#camera.pitch)) * Math.sin(degreeToRadians(this.#camera.yaw)),
+            this.#camera.target.y + this.#camera.distance * Math.sin(degreeToRadians(this.#camera.pitch)),
+            this.#camera.target.z + this.#camera.distance * Math.cos(degreeToRadians(this.#camera.pitch)) * Math.cos(degreeToRadians(this.#camera.yaw)),
+        );
+
+        const cameraViewMatrix = PerspectiveMatrices.lightView(
+            eye,
+            this.#camera.target,
+            new Vector3(0, 1, 0)
+        );
+        
+        return getVoxelFromObject(this.#camera, clickPos, this.#voxelObject, new Vector2(canvas.width, canvas.height) , objectTransformMatrix, ndcProjectionMatrix, cameraViewMatrix, lastEmpty, hitOnExit);
     }
 
 }

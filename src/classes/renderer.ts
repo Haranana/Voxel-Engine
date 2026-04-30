@@ -1,5 +1,5 @@
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
-import { baseShaderWithWireframe } from "../shaders/baseRenderableObjectShaders";
+import { baseShaderWithWireframe, borderGridShader, voxelObjectBorderShader } from "../shaders/baseRenderableObjectShaders";
 import type { Scene } from "./scene";
 
 export type EntityRenderData = {
@@ -312,7 +312,7 @@ export class Renderer{
             },
             depthStencil: {
                 depthWriteEnabled: true,
-                depthCompare: 'less',
+                depthCompare: 'less-equal',
                 format: 'depth24plus',
             },
         });
@@ -331,7 +331,7 @@ export class Renderer{
         if(!this.initialized) false;
         const device = this.#device!;
         
-        const shaderCode = baseShaderWithWireframe();
+        const shaderCode = borderGridShader();
         const shaderModule = device.createShaderModule({
             label: 'voxel object shader module',
             code: shaderCode,
@@ -390,15 +390,29 @@ export class Renderer{
             fragment: {
                 entryPoint: `fragmentShader`,
                 module: shaderModule,
-                targets: [{format: this.#presentationFormat!}],
+                targets: [{
+                    format: this.#presentationFormat!,
+                    blend: {
+                        color: {
+                            srcFactor: 'src-alpha',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add',
+                        },
+                        alpha: {
+                            srcFactor: 'one',
+                            dstFactor: 'one-minus-src-alpha',
+                            operation: 'add',
+                        },
+                    },
+                }],
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: 'front',
+                cullMode: 'back',
             },
             depthStencil: {
-                depthWriteEnabled: true,
                 depthCompare: 'less',
+                depthWriteEnabled: false,
                 format: 'depth24plus',
             },
         });
@@ -417,7 +431,7 @@ export class Renderer{
         if(!this.initialized) false;
         const device = this.#device!;
 
-        const shaderCode = baseShaderWithWireframe();
+        const shaderCode = voxelObjectBorderShader();
         const shaderModule = device.createShaderModule({
             label: 'voxel object shader module',
             code: shaderCode,
@@ -480,11 +494,11 @@ export class Renderer{
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: 'front',
+                cullMode: 'back',
             },
             depthStencil: {
+                depthCompare: 'less-equal',
                 depthWriteEnabled: true,
-                depthCompare: 'less',
                 format: 'depth24plus',
             },
         });
@@ -596,6 +610,7 @@ export class Renderer{
 
             const selectedAreaMesh = scene.getObjectRef().getSelectedAreaMesh();
             const meshData = selectedAreaMesh!.getVerticesData();
+            console.log(`[renderScene] selectedAreaVertices: ${meshData.trianglesIndices.length}`)
 
             const vertexBuffer = device.createBuffer({
                 label: 'vertex data buffer',
@@ -695,17 +710,11 @@ export class Renderer{
             pass.setVertexBuffer(0, objectBorderVertexDataBuffer);
             pass.setIndexBuffer(objectBorderTrianglesIndexBuffer, "uint32");
             pass.setBindGroup(0, this.#sceneBorderWireRenderData.bindGroup);
-            //console.log(`[renderScene] drawing ${meshData.trianglesIndices.length} vertices of border wire`);
             pass.drawIndexed(meshData.trianglesIndices.length);
         }
-
-        //console.log(`[renderScene] finished proper rendering, ending pass and encoding`);
-
         pass.end();
         const commandBuffer = encoder.finish();
         device.queue.submit([commandBuffer]);
-
-        //console.log(`[!renderScene!] command buffer sumbitted`);
     }
 
     resizeCanvas(scene: Scene | null = null) {

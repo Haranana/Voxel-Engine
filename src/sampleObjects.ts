@@ -1,6 +1,7 @@
 import { VoxelObject } from "./classes/voxelObject";
 import { Vector3 } from "./math/vector3.type";
 import { Vector4 } from "./math/vector4.type";
+
 export const defaultColor: Vector4 = new Vector4(101, 204, 224,255);
 export const debugPaintColor: Vector4 = new Vector4(190,90,90,255); 
 export function getBasicSampleVoxelObject(){

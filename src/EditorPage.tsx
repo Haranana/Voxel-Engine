@@ -35,22 +35,23 @@ export type EditMode =
 
 export default function EditorPage() {
   const controller = useContext(ControllerContext)!;
+  const currentSelectionTypeRef = useRef<SelectMode>("Voxel");
+  const currentEditTypeRef = useRef<EditMode>("Add");
 
   //states for updating widgets when controller changes some data
   const [cameraPropertiesVersion, setCameraPropertiesVersion] = useState<number>(0);
   function onCameraUpdated(){
-    console.log("Less go!");
     setCameraPropertiesVersion(prev=>prev+1);
   }
 
   const [selectToolsPropertiesVersion, setSelectToolsPropertiesVersion] = useState<number>(0);
   function onSelectToolsUpdated(){
-    setCameraPropertiesVersion(prev=>prev+1);
+    setSelectToolsPropertiesVersion(prev=>prev+1);
   }
 
-    const [editToolsPropertiesVersion, setEditToolsPropertiesVersion] = useState<number>(0);
+  const [editToolsPropertiesVersion, setEditToolsPropertiesVersion] = useState<number>(0);
   function onEditToolsUpdated(){
-    setCameraPropertiesVersion(prev=>prev+1);
+    setEditToolsPropertiesVersion(prev=>prev+1);
   }
 
   const selectedObjectPropertiesRef =
@@ -91,7 +92,8 @@ export default function EditorPage() {
   
   useEffect(()=>{
     if(selectedCameraRef.current==null) return;
-    controller.init(selectedCameraRef.current, rerenderScene);
+    
+    controller.init(selectedCameraRef.current, currentSelectionTypeRef, currentEditTypeRef, sceneRef.current, rerenderScene);
     controller.onCameraModified = onCameraUpdated;
   },[]);
   
@@ -351,26 +353,27 @@ export default function EditorPage() {
     cameraVersion={cameraPropertiesVersion}
   />
 
-  const [currentSelectionType , setCurrentSelectionType] = useState<SelectMode>("Voxel");
+  //const [currentSelectionType , setCurrentSelectionType] = useState<SelectMode>("Voxel");
+  
   const [isSelectToolsWidgetOpen, setIsSelectToolsWidgetOpen] = useState<boolean>(false);
   const selectToolsButton : ActionButtonData[] = [
     {
       id: "voxelSelectButton",
       label: "voxel",
-      onClick: () => {setCurrentSelectionType("Voxel")},
-      disabled: currentSelectionType==="Voxel",
+      onClick: () => {currentSelectionTypeRef.current = "Voxel"; onSelectToolsUpdated()},
+      disabled: currentSelectionTypeRef.current==="Voxel",
     },
     {
       id: "cubeSelectButton",
       label: "cube",
-      onClick: () => {setCurrentSelectionType("Cube")},
-      disabled: currentSelectionType==="Cube",
+      onClick: () => {currentSelectionTypeRef.current = "Cube"; onSelectToolsUpdated()},
+      disabled: currentSelectionTypeRef.current==="Cube",
     },
     {
       id: "faceSelectButton",
       label: "face",
-      onClick: () => {setCurrentSelectionType("Face")},
-      disabled: currentSelectionType==="Face",
+      onClick: () => {currentSelectionTypeRef.current = "Face"; onSelectToolsUpdated()},
+      disabled: currentSelectionTypeRef.current==="Face",
     },
   ];
 
@@ -382,40 +385,41 @@ export default function EditorPage() {
     buttonPanel = {selectToolsButtons}
     isOpen = {isSelectToolsWidgetOpen}
     onOpenChange={setIsSelectToolsWidgetOpen}
+    selectToolsVersion = {selectToolsPropertiesVersion}
   />
 
-  const [currentEditType, setCurrentEditType] = useState<EditMode>("Add");
+  
   const [isEditToolsWidgetOpen, setIsEditToolsWidgetOpen] = useState<boolean>(false);
   const editToolsButton : ActionButtonData[] = [
     {
       id: "AddEditButton",
       label: "add",
-      onClick: () => {setCurrentEditType("Add")},
-      disabled: currentEditType==="Add",
+      onClick: () => {currentEditTypeRef.current="Add"; onEditToolsUpdated()},
+      disabled: currentEditTypeRef.current==="Add",
     },
     {
       id: "RemoveEditButton",
       label: "remove",
-      onClick: () => {setCurrentEditType("Remove")},
-      disabled: currentEditType==="Remove",
+      onClick: () => {currentEditTypeRef.current = "Remove"; onEditToolsUpdated()},
+      disabled: currentEditTypeRef.current==="Remove",
     },
     {
       id: "PaintEditButton",
       label: "paint",
-      onClick: () => {setCurrentEditType("Paint")},
-      disabled: currentEditType==="Paint",
+      onClick: () => {currentEditTypeRef.current = "Paint"; onEditToolsUpdated()},
+      disabled: currentEditTypeRef.current==="Paint",
     },
     {
       id: "MoveEditButton",
       label: "move",
-      onClick: () => {setCurrentEditType("Move")},
-      disabled: currentEditType==="Move",
+      onClick: () => {currentEditTypeRef.current = "Move"; onEditToolsUpdated()},
+      disabled: currentEditTypeRef.current==="Move",
     },
     {
       id: "NoneEditButton",
       label: "None",
-      onClick: () => {setCurrentEditType("None")},
-      disabled: currentEditType==="None",
+      onClick: () => {currentEditTypeRef.current = "None"; onEditToolsUpdated()},
+      disabled: currentEditTypeRef.current==="None",
     },
   ];
 
@@ -427,6 +431,7 @@ export default function EditorPage() {
     buttonPanel = {editToolsButtons}
     isOpen = {isEditToolsWidgetOpen}
     onOpenChange={setIsEditToolsWidgetOpen}
+    editToolVersion={editToolsPropertiesVersion}
   />
   
   return (
@@ -472,13 +477,6 @@ export default function EditorPage() {
               renderScene = {rerenderScene}
               onRenderAndSceneInit={onRenderAndSceneInit}
               objectProperties={selectedObjectPropertiesRef.current}
-              camera={selectedCameraRef.current}
-              //onSelectedObjectChanged={onSelectedObjectChanged}
-              //onSelectedCameraChanged={setSelectedCamera}
-              selectedObject={selectedObjectRef.current}
-              //renderOptions={renderOptions}
-              selectMode={currentSelectionType}
-              editMode={currentEditType}
               />
             </div>
 

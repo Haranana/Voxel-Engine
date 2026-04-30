@@ -5,6 +5,7 @@ export type SelectToolsWidgetProps = {
     buttonPanel: React.ReactNode;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
+    selectToolsVersion: number;
 }
 
 export function SelectToolsWidget(props: SelectToolsWidgetProps){

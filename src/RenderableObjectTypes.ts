@@ -6,10 +6,3 @@ export type ObjectProperties = {
     scale: Vector3,
     rotation: Vector3,
 }
-
-export type RenderOptions = {
-    voxels: boolean;
-    objectGrid: boolean;
-    borderWire: boolean;
-    borderGrid: boolean;
-}

@@ -4,6 +4,7 @@ export type EditToolsWidgetProps = {
     buttonPanel: React.ReactNode;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
+    editToolVersion: number;
 }
 
 export function EditToolsWidget(props: EditToolsWidgetProps){

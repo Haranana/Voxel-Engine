@@ -1,7 +1,12 @@
+import type { RefObject } from "react";
 import type { Camera, ProjectionType } from "./classes/camera";
+import type { Scene } from "./classes/scene";
+import { faceDirectionToVector, vectorToFaceDirection } from "./classes/voxelObject";
+import type { EditMode, SelectMode } from "./EditorPage";
 import { clamp, mod } from "./math/utils";
 import type { Vector2 } from "./math/vector2.type"
 import { Vector3 } from "./math/vector3.type"
+import { debugPaintColor, defaultColor } from "./sampleObjects";
 
 type SelectSession = {
     startCoords: Vector3 | null,
@@ -19,15 +24,25 @@ export class EditorController{
 
     //base fields
     camera: Camera | null = null;
+
+    selectModeRef: RefObject<SelectMode> | null = null;
+    //selectMode: SelectMode | null = null;
+    editModeRef: RefObject<EditMode> | null = null;
+    scene: Scene | null = null;
     renderScene: (()=>void) | null = null;
     initialized: boolean = false;
 
     constructor(){}
 
-    init(camera: Camera, renderScene: ()=>void){
+    init(camera: Camera, selectMode: RefObject<SelectMode>, editMode: RefObject<EditMode>, scene: Scene, renderScene: ()=>void){
         this.camera = camera;
         this.renderScene = renderScene;
         this.startCameraMoveAnimationLoop();
+        this.selectModeRef = selectMode;
+        this.selectModeRef = selectMode
+        this.editModeRef = editMode;
+        this.scene = scene;
+
         this.initialized = true;
     }
 
@@ -75,6 +90,8 @@ export class EditorController{
     cameraPitchMaxValue = 89;
     cameraYawMinValue = 0;
     cameraYawMaxValue = 360;
+
+    mouseWheelSensitivity = 0.25;
 
     onCameraModified : (()=>void) | null = null;
 
@@ -124,7 +141,7 @@ export class EditorController{
             }
 
             if(cameraModified){
-                console.log("[EditorController] camera modified: " + this.camera!.pitch + " : " + this.camera!.yaw);
+                //console.log("[EditorController] camera modified: " + this.camera!.pitch + " : " + this.camera!.yaw);
                 if(this.onCameraModified!=null) this.onCameraModified();
                 this.renderScene!();   
             }
@@ -258,6 +275,20 @@ export class EditorController{
         this.setCameraDistance(this.camera!.distance + delta);
     }
 
+    setCameraDistanceByWheel(mouseDeltaY: number){
+        if (!this.initialized) return;
+        const camera = this.camera!;
+
+        const value =  Math.max(0.1, camera.distance + mouseDeltaY * this.mouseWheelSensitivity);
+        const v = clamp({ value, min: this.cameraDistanceMinValue, max: this.cameraDistanceMaxValue });
+
+        if (v !== camera.distance) {
+            camera.distance = v;
+            if(this.onCameraModified!=null) this.onCameraModified();
+            this.renderScene!();
+        }
+    }
+
     setCameraProjectionType(value: ProjectionType){
         if (!this.initialized) return;
         const camera = this.camera!;
@@ -339,4 +370,166 @@ export class EditorController{
     addCameraTargetZ(delta: number) {
         this.setCameraTargetZ(this.camera!.target.z + delta);
     }
+
+    //Select and Edit component
+
+    selectSession: SelectSession = {
+        startCoords: null,
+        endCoords: null,
+    }
+
+    hasSelectSessionStarted(){
+        return this.selectSession.startCoords!=null;
+    }
+
+    resetSelectSession(){
+        if(!this.initialized) return;
+        const selectAreaModified = this.scene!.getObjectRef().resetSelect();
+        this.selectSession = {
+            startCoords: null,
+            endCoords: null,
+        }
+        if(selectAreaModified){
+            this.renderScene!();
+        }
+    }
+
+    handleCanvasPointerDown(pointerPos: Vector2){
+        if(!this.initialized) return;
+
+        const editMode = this.editModeRef!.current;
+        const selectMode = this.selectModeRef!.current;
+
+        const lastEmpty = true;
+        const hitOnExit = true;
+        const rayResults = this.scene!.shootRay(pointerPos, lastEmpty , hitOnExit);
+        if(!rayResults) return;
+        const hitVoxel : Vector3 = rayResults.voxelCoords;
+
+        let voxelObjectChanged = false;
+        let selectedAreaChanged = false;
+        if(selectMode=="Voxel" || selectMode=="Face"){
+                if(editMode=="Add"){
+                    voxelObjectChanged = this.scene!.getObjectRef().addSelectedVoxels(defaultColor)!=0;
+                    selectedAreaChanged = this.scene!.getObjectRef().resetSelect()!=0;
+                }else if(editMode=="Paint"){
+                    voxelObjectChanged = this.scene!.getObjectRef().paintSelectedVoxels(debugPaintColor)!=0;
+                    selectedAreaChanged = this.scene!.getObjectRef().resetSelect()!=0;
+                }else if(editMode=="Remove"){
+                    voxelObjectChanged = this.scene!.getObjectRef().removeSelectedVoxels()!=0;
+                    selectedAreaChanged = this.scene!.getObjectRef().resetSelect()!=0;
+                }
+        }else if(selectMode=="Cube"){
+            this.resetSelectSession();
+            this.selectSession.startCoords = hitVoxel;  
+            console.log(`[controller] session started ad: ${hitVoxel.toString()}`)
+        }
+
+        if(voxelObjectChanged || selectedAreaChanged){
+            this.renderScene!();
+        }
+    }
+
+    handleCanvasPointerMove(pointerPos: Vector2){
+        if(!this.initialized) return;
+
+        const editMode = this.editModeRef!.current;
+        const selectMode = this.selectModeRef!.current;
+
+        const lastEmpty = editMode === "Add";
+        const hitOnExit = true;   
+        const rayResults = this.scene!.shootRay(pointerPos, lastEmpty, hitOnExit);
+        if(!rayResults){
+            this.resetSelectSession();
+            return;
+        }
+
+        const hitVoxel : Vector3 = rayResults.voxelCoords;
+        const hitDirection: Vector3 = faceDirectionToVector(rayResults.hitDirection);
+
+        let selectedAreaChanged = false;
+        let voxelObjectChanged = false;
+
+        if(this.hasSelectSessionStarted()){
+            console.log("[controller] session in move")
+            if(editMode == "Add"){
+                if(selectMode=="Voxel"){
+                    this.scene!.getObjectRef().selectVoxel(hitVoxel);
+                    voxelObjectChanged = this.scene!.getObjectRef().addSelectedVoxels(defaultColor) != 0;
+                }else if(selectMode=="Cube"){
+                    selectedAreaChanged = this.scene!.getObjectRef().selectCube(this.selectSession.startCoords!, hitVoxel);
+                }
+            }else if(editMode=="Remove"){
+                if(selectMode=="Voxel"){
+                    this.scene!.getObjectRef().selectVoxel(hitVoxel);
+                    voxelObjectChanged = this.scene!.getObjectRef().removeSelectedVoxels() != 0;
+                }else if(selectMode=="Cube"){
+                    selectedAreaChanged = this.scene!.getObjectRef().selectCube(this.selectSession.startCoords!, hitVoxel);
+                }
+            }else if(editMode=="Paint"){
+                if(selectMode=="Voxel"){
+                    this.scene!.getObjectRef().selectVoxel(hitVoxel);
+                    voxelObjectChanged = this.scene!.getObjectRef().paintSelectedVoxels(debugPaintColor) != 0;
+                }else if(selectMode=="Cube"){
+                    selectedAreaChanged = this.scene!.getObjectRef().selectCube(this.selectSession.startCoords!, hitVoxel);
+                }
+            }
+        }else{
+            if(editMode == "Add"){
+                if(selectMode=="Voxel" || selectMode=="Cube"){
+                    selectedAreaChanged = this.scene!.getObjectRef().selectVoxel(hitVoxel);
+                }else if(selectMode=="Face"){
+                    selectedAreaChanged = this.scene!.getObjectRef().selectFace(hitVoxel , vectorToFaceDirection(hitDirection), true);
+                }
+            }else if(editMode=="Remove" || editMode=="Paint"){
+                if(selectMode=="Voxel" || selectMode=="Cube"){
+                    selectedAreaChanged = this.scene!.getObjectRef().selectVoxel(hitVoxel);
+                }else if(selectMode=="Face"){
+                    selectedAreaChanged = this.scene!.getObjectRef().selectFace(hitVoxel , vectorToFaceDirection(hitDirection));
+                }
+            }else{
+                //higlightCausedChange = props.selectedObject.highlightVoxel(hitVoxel);
+            }
+        }
+
+        if(selectedAreaChanged || voxelObjectChanged) {
+            this.renderScene!();
+        }
+    }
+
+    handleCanvasPointerUp(pointerPos: Vector2){
+        if(!this.initialized) return; 
+        //console.log(this.editMode + " : " + this.selectMode);
+        if(this.hasCameraMoveSessionStarted()){
+            this.resetSelectSession();
+        }
+
+        const editMode = this.editModeRef!.current;
+        const selectMode = this.selectModeRef!.current;
+
+        const lastEmpty = this.editModeRef!.current === "Add";
+        const hitOnExit = true;   
+        const rayResults = this.scene!.shootRay(pointerPos, lastEmpty, hitOnExit);
+        if(!rayResults) return;
+
+        const hitVoxel : Vector3 = rayResults.voxelCoords;
+
+        if(this.hasSelectSessionStarted()){
+            this.selectSession.endCoords = hitVoxel;
+            if(selectMode=="Cube"){
+                if(editMode=="Add"){
+                    this.scene!.getObjectRef().addSelectedVoxels(defaultColor);
+                }else if(editMode=="Paint"){
+                    this.scene!.getObjectRef().paintSelectedVoxels(debugPaintColor);
+                }else if(editMode=="Remove"){
+                    this.scene!.getObjectRef().removeSelectedVoxels();
+                }
+            }
+            this.resetSelectSession();
+        }
+
+        this.scene!.getObjectRef().resetSelect();
+        this.renderScene!();        
+    }
+
 }
