@@ -287,7 +287,7 @@ export class VoxelObject{
                 out.quadsIndices.push(currentVoxelId, currentVoxelId+1, currentVoxelId+1, currentVoxelId+2, currentVoxelId+2, currentVoxelId+3, currentVoxelId+3, currentVoxelId);
             }                  
         })                                     
-        console.log("[rebuildSelectedAreaMesh] done")
+        //console.log("[rebuildSelectedAreaMesh] done")
         this.selectedAreaMesh = out;
         this.selectedAreaModified = false;
     }
@@ -478,7 +478,7 @@ export class VoxelObject{
     //simple meshing with culling
     //in future probably add greedy meshing for exports
     rebuildMesh(){
-        console.log(`[rebuildMesh]`);
+        //console.log(`[rebuildMesh]`);
         const out: RenderableObject = new RenderableObject();
         const objectStart : Vector3 = new Vector3(-this.size.x/2 , -this.size.y/2, -this.size.z/2) 
         for(let x = 0; x < this.size.x; x++){
@@ -892,7 +892,7 @@ export class VoxelObject{
     //returns true if successfuly added or if all voxels were already selected
     //returns false if starting voxel doesn't exist
     selectFace(v: Vector3, dir: FaceDirection, emptyVoxels: boolean = false): boolean{
-        console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
+        //console.log(`[selectFace] select face for ${v.toString()} | ${dir}`)
         if(!this.voxelExists(v)) {
             return false;
         }
@@ -900,7 +900,7 @@ export class VoxelObject{
         this.#selectFaceRecursion(v, dir, emptyVoxels);
         //this.voxelsModified = true;
         this.selectedAreaModified = true;
-        console.log(`[selectFace] voxels of given face: ${dir} | length: ${this.selectedVoxels.size}`)
+        //console.log(`[selectFace] voxels of given face: ${dir} | length: ${this.selectedVoxels.size}`)
         /*
         this.selectedVoxels.forEach((v)=>{
             console.log(v);

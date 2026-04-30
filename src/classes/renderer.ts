@@ -1,5 +1,5 @@
 import { makeShaderDataDefinitions, makeStructuredView, type StructuredView } from "webgpu-utils";
-import { baseShaderWithWireframe, borderGridShader, voxelObjectBorderShader } from "../shaders/baseRenderableObjectShaders";
+import { baseShader, baseShaderWithWireframe, borderGridShader, voxelObjectBorderShader, voxelObjectGridShader } from "../shaders/baseRenderableObjectShaders";
 import type { Scene } from "./scene";
 
 export type EntityRenderData = {
@@ -20,6 +20,17 @@ export class Renderer{
     #isVoxelObjectRenderDataLoaded() : boolean {
         return this.#voxelObjectRenderData.renderPipeline!=null && this.#voxelObjectRenderData.bindGroup!=null && 
         this.#voxelObjectRenderData.uniformBuffer!=null && this.#voxelObjectRenderData.uniformBufferView!=null
+    }
+
+    #voxelObjectGridRenderData: EntityRenderData = {
+        renderPipeline: null,
+        bindGroup: null,
+        uniformBuffer: null,
+        uniformBufferView: null
+    }
+    #isVoxelObjectGridRenderDataLoaded() : boolean {
+        return this.#voxelObjectGridRenderData.renderPipeline!=null && this.#voxelObjectGridRenderData.bindGroup!=null && 
+        this.#voxelObjectGridRenderData.uniformBuffer!=null && this.#voxelObjectGridRenderData.uniformBufferView!=null
     }
 
     #selectedAreaRenderData: EntityRenderData = {
@@ -57,7 +68,6 @@ export class Renderer{
 
     #device: GPUDevice | null  = null
     #canvas: HTMLCanvasElement | null = null
-    #adapter: GPUAdapter | null = null
     #context: GPUCanvasContext | null = null
     #presentationFormat: GPUTextureFormat | null = null
     #depthTexture: GPUTexture | null = null
@@ -85,7 +95,6 @@ export class Renderer{
 
         this.#device = device;
         this.#canvas =canvas;
-        this.#adapter = adapter;
         this.#context = context;
         this.#presentationFormat = navigator.gpu.getPreferredCanvasFormat();
         
@@ -117,6 +126,7 @@ export class Renderer{
             },
         };
         this.loadVoxelObjectRenderData();
+        this.loadVoxelObjectGridRenderData();
         this.loadSelectedAreaRenderData();
         this.loadSceneBorderGridRenderData();
         this.loadSceneBorderWireRenderData();
@@ -159,7 +169,7 @@ export class Renderer{
         if(!this.initialized) false;
         const device = this.#device!;
 
-        const shaderCode = baseShaderWithWireframe();
+        const shaderCode = baseShader();
         const shaderModule = device.createShaderModule({
             label: 'voxel object shader module',
             code: shaderCode,
@@ -241,11 +251,97 @@ export class Renderer{
         })
     }
 
+    loadVoxelObjectGridRenderData(){
+    if(!this.initialized) false;
+        const device = this.#device!;
+
+        const shaderCode = voxelObjectGridShader();
+        const shaderModule = device.createShaderModule({
+            label: 'voxel object shader module',
+            code: shaderCode,
+        });
+
+        const bindGroupLayout = device.createBindGroupLayout({
+        entries: [
+            {
+                binding: 0,
+                visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                buffer: { type: "uniform" },
+            },
+        ],
+        });
+
+        this.#voxelObjectGridRenderData.uniformBufferView = makeStructuredView(makeShaderDataDefinitions(shaderCode).uniforms.uniformData);
+        this.#voxelObjectGridRenderData.uniformBuffer = device.createBuffer({
+            label: 'uniform buffer',
+            size: this.#voxelObjectGridRenderData.uniformBufferView.arrayBuffer.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+
+        const pipelineLayout = device.createPipelineLayout({
+            bindGroupLayouts: [bindGroupLayout],
+        });
+
+        this.#voxelObjectGridRenderData.renderPipeline = device.createRenderPipeline({
+            label: 'Selected object mesh pipeline',
+            layout: pipelineLayout,
+            vertex: {
+                entryPoint: `vertexShader`,
+                module: shaderModule,
+                buffers:[
+                    {
+                        arrayStride: 6*4,
+                        attributes:[
+                            {
+                                shaderLocation: 0,
+                                offset: 0,
+                                format: 'float32x3',
+                            },
+                            {
+                                shaderLocation: 1,
+                                offset: 12,
+                                format: 'unorm8x4',
+                            },
+                            {
+                                shaderLocation: 2,
+                                offset: 16,
+                                format: 'float32x2',
+                            },
+                        ]
+                    }
+                ]
+            },
+            fragment: {
+                entryPoint: `fragmentShader`,
+                module: shaderModule,
+                targets: [{format: this.#presentationFormat!}],
+            },
+            primitive: {
+                topology: "triangle-list",
+                cullMode: 'front',
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'less-equal',
+                format: 'depth24plus',
+            },
+        });
+
+        this.#voxelObjectGridRenderData.bindGroup = device.createBindGroup({
+            label: 'bind group for uniform data',
+            layout: bindGroupLayout,
+            entries:[{
+                binding: 0,
+                resource: {buffer: this.#voxelObjectGridRenderData.uniformBuffer!},
+            }]
+        })
+    }
+
     loadSelectedAreaRenderData(){
         if(!this.initialized) false;
         const device = this.#device!;
 
-        const shaderCode = baseShaderWithWireframe();
+        const shaderCode = baseShader();
         const shaderModule = device.createShaderModule({
             label: 'voxel object shader module',
             code: shaderCode,
@@ -304,7 +400,20 @@ export class Renderer{
             fragment: {
                 entryPoint: `fragmentShader`,
                 module: shaderModule,
-                targets: [{format: this.#presentationFormat!}],
+                targets: [{format: this.#presentationFormat!,
+                    blend: {
+                    color: {
+                        srcFactor: "src-alpha",
+                        dstFactor: "one-minus-src-alpha",
+                        operation: "add",
+                    },
+                    alpha: {
+                        srcFactor: "one",
+                        dstFactor: "one-minus-src-alpha",
+                        operation: "add",
+                    }
+                    }
+                }],
             },
             primitive: {
                 topology: "triangle-list",
@@ -605,12 +714,62 @@ export class Renderer{
             //console.log(`[renderScene] drawing ${trianglesIndices.length} vertices of voxel object`);
             pass.drawIndexed(trianglesIndices.length);
         }
+
+        //render object grid
+        if(this.#isVoxelObjectRenderDataLoaded()){
+            const {vertexData, linesIndices, trianglesIndices, quadsIndices} = scene.getObjectRef().mesh!.getVerticesData();
+            //console.log(`[renderScene] object mesh has: ${trianglesIndices.length} indices`);
+            const vertexDataBuffer = device.createBuffer({
+                label: 'vertex data buffer',
+                size: vertexData.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            });
+            device.queue.writeBuffer(vertexDataBuffer , 0 , vertexData);
+
+            const trianglesIndexBuffer = device.createBuffer({
+                label: 'index data buffer',
+                size: trianglesIndices.byteLength,
+                usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            });
+            device.queue.writeBuffer(trianglesIndexBuffer, 0 , trianglesIndices);
+
+            const linesIndexBuffer = device.createBuffer({
+                label: 'index data buffer',
+                size: linesIndices.byteLength,
+                usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            });
+            device.queue.writeBuffer(linesIndexBuffer, 0 , linesIndices);
+
+            const quadsIndexBuffer = device.createBuffer({
+                label: 'index data buffer',
+                size: quadsIndices.byteLength,
+                usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            });
+            device.queue.writeBuffer(quadsIndexBuffer, 0 , quadsIndices);
+
+            const ndcProjection = scene.getCameraCopy().projectionType === "orthographic"? scene.getOrthoProjectionMatrix() : scene.getPerspectiveProjectionMatrix();
+            const shadersUniformsValuesResolution = [canvas.width, canvas.height];
+            this.#voxelObjectGridRenderData.uniformBufferView!.set({
+                resolution: shadersUniformsValuesResolution,
+                objectTransform: scene.getObjectTransformMatrix().toArrays(),
+                ndcProjection: ndcProjection.toArrays(),
+                viewMatrix: scene.getCameraView().toArrays(),
+            });
+            device.queue.writeBuffer(this.#voxelObjectGridRenderData.uniformBuffer!, 0, this.#voxelObjectGridRenderData.uniformBufferView!.arrayBuffer);
+
+            pass.setPipeline(this.#voxelObjectGridRenderData.renderPipeline!);
+            pass.setVertexBuffer(0 , vertexDataBuffer);
+            pass.setIndexBuffer(trianglesIndexBuffer, "uint32");
+            pass.setBindGroup(0, this.#voxelObjectGridRenderData.bindGroup);
+            pass.drawIndexed(trianglesIndices.length);
+        }
+
         //render selected area
         if(this.#isSelectedAreaRenderDataLoaded()){
 
             const selectedAreaMesh = scene.getObjectRef().getSelectedAreaMesh();
             const meshData = selectedAreaMesh!.getVerticesData();
-            console.log(`[renderScene] selectedAreaVertices: ${meshData.trianglesIndices.length}`)
+            //console.log(`[renderScene] selectedAreaVertices: ${meshData.trianglesIndices.length}`)
 
             const vertexBuffer = device.createBuffer({
                 label: 'vertex data buffer',

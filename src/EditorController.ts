@@ -400,7 +400,7 @@ export class EditorController{
         const editMode = this.editModeRef!.current;
         const selectMode = this.selectModeRef!.current;
 
-        const lastEmpty = true;
+        const lastEmpty = editMode === "Add";
         const hitOnExit = true;
         const rayResults = this.scene!.shootRay(pointerPos, lastEmpty , hitOnExit);
         if(!rayResults) return;
@@ -420,9 +420,9 @@ export class EditorController{
                     selectedAreaChanged = this.scene!.getObjectRef().resetSelect()!=0;
                 }
         }else if(selectMode=="Cube"){
-            this.resetSelectSession();
             this.selectSession.startCoords = hitVoxel;  
-            console.log(`[controller] session started ad: ${hitVoxel.toString()}`)
+                selectedAreaChanged = this.scene!.getObjectRef().selectVoxel(hitVoxel);
+            //console.log(`[controller] session started ad: ${hitVoxel.toString()}`)
         }
 
         if(voxelObjectChanged || selectedAreaChanged){
@@ -451,7 +451,7 @@ export class EditorController{
         let voxelObjectChanged = false;
 
         if(this.hasSelectSessionStarted()){
-            console.log("[controller] session in move")
+            //console.log("[controller] session in move")
             if(editMode == "Add"){
                 if(selectMode=="Voxel"){
                     this.scene!.getObjectRef().selectVoxel(hitVoxel);
