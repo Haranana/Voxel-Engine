@@ -16,6 +16,7 @@ import { SelectToolsWidget } from "./editorWidgets/SelectToolsWidget";
 import { Scene } from "./classes/scene";
 import { Renderer } from "./classes/renderer";
 import { ControllerContext } from "./ControllerContext";
+import ScenePropertiesWidget from "./editorWidgets/ScenePropertiesWidget";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -433,6 +434,46 @@ export default function EditorPage() {
     onOpenChange={setIsEditToolsWidgetOpen}
     editToolVersion={editToolsPropertiesVersion}
   />
+
+  //Scene properties
+  const [scenePropertiesVersion, setScenePropertiesVersion] = useState<number>(0);
+  function onScenePropertiesUpdated(){
+    setScenePropertiesVersion(prev=>prev+1);
+  }
+
+  const [isScenePropertiesWidgetOpen, setIsScenePropertiesWidgetOpen] = useState<boolean>(false);
+  const scenePropertiesButton : ActionButtonData[] = [
+    {
+      id: "ObjectGrid",
+      label: "object grid",
+      onClick: () => {controller.toggleSceneObjectGrid(); onScenePropertiesUpdated()},
+    },
+    {
+      id: "borderGrid",
+      label: "border grid",
+      onClick: () => {controller.toggleSceneBorderGrid(); onScenePropertiesUpdated()},
+    },
+    {
+      id: "borderWire",
+      label: "border wire",
+      onClick: () => {
+        console.log("A");
+        controller.toggleSceneBorderWire(); 
+        onScenePropertiesUpdated()
+      },
+    },
+  ];
+
+  const scenePropertiesButtons : React.ReactNode = <ActionButtonsPanel
+    buttons={scenePropertiesButton}
+  />
+
+  const scenePropertiesWidget : React.ReactNode = <ScenePropertiesWidget
+    buttonPanel = {scenePropertiesButtons}
+    isOpen = {isScenePropertiesWidgetOpen}
+    onOpenChange={setIsScenePropertiesWidgetOpen}
+    version={scenePropertiesVersion}
+  />
   
   return (
     <div className="EditorPage">
@@ -511,6 +552,7 @@ export default function EditorPage() {
               {cameraPropertiesWidget}
               {selectToolsWidget}
               {editToolsWidget}
+              {scenePropertiesWidget}
               </div>
             </ResizableContainer>
           </div>

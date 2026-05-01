@@ -532,4 +532,22 @@ export class EditorController{
         this.renderScene!();        
     }
 
+    //scene
+    toggleSceneObjectGrid(){
+        if(!this.initialized) return;
+        this.scene!.options.voxelObjectsGrid = this.scene!.options.voxelObjectsGrid? false : true;
+        this.renderScene!();
+    }
+
+    toggleSceneBorderGrid(){
+        if(!this.initialized) return;
+        this.scene!.options.borderGrid = this.scene!.options.borderGrid? false : true;
+        this.renderScene!();
+    }
+
+    toggleSceneBorderWire(){
+        if(!this.initialized) return;
+        this.scene!.options.borderWire = this.scene!.options.borderWire? false : true;
+        this.renderScene!();
+    }
 }

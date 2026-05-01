@@ -25,7 +25,7 @@ export class Scene{
     options: RenderSceneOptions = {
         borderWire: true,
         borderGrid: true,
-        voxelObjectsGrid: false,
+        voxelObjectsGrid: true,
     };
 
     constructor(voxelObject: VoxelObject, camera: Camera){

@@ -716,7 +716,7 @@ export class Renderer{
         }
 
         //render object grid
-        if(this.#isVoxelObjectRenderDataLoaded()){
+        if(scene.options.voxelObjectsGrid && this.#isVoxelObjectGridRenderDataLoaded()){
             const {vertexData, linesIndices, trianglesIndices, quadsIndices} = scene.getObjectRef().mesh!.getVerticesData();
             //console.log(`[renderScene] object mesh has: ${trianglesIndices.length} indices`);
             const vertexDataBuffer = device.createBuffer({
@@ -762,44 +762,6 @@ export class Renderer{
             pass.setIndexBuffer(trianglesIndexBuffer, "uint32");
             pass.setBindGroup(0, this.#voxelObjectGridRenderData.bindGroup);
             pass.drawIndexed(trianglesIndices.length);
-        }
-
-        //render selected area
-        if(this.#isSelectedAreaRenderDataLoaded()){
-
-            const selectedAreaMesh = scene.getObjectRef().getSelectedAreaMesh();
-            const meshData = selectedAreaMesh!.getVerticesData();
-            //console.log(`[renderScene] selectedAreaVertices: ${meshData.trianglesIndices.length}`)
-
-            const vertexBuffer = device.createBuffer({
-                label: 'vertex data buffer',
-                size: meshData.vertexData.byteLength,
-                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            });
-            device.queue.writeBuffer(vertexBuffer , 0 , meshData.vertexData);
-
-            const indexBuffer = device.createBuffer({
-                label: 'index data buffer',
-                size: meshData.trianglesIndices.byteLength,
-                usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-            });
-            device.queue.writeBuffer(indexBuffer, 0 , meshData.trianglesIndices);
-
-            const shadersUniformsValuesResolution = [canvas.width, canvas.height];
-            this.#selectedAreaRenderData.uniformBufferView!.set({
-                resolution: shadersUniformsValuesResolution,
-                objectTransform: scene.getObjectTransformMatrix().toArrays(),
-                ndcProjection: scene.getPerspectiveProjectionMatrix().toArrays(),
-                viewMatrix: scene.getCameraView().toArrays(),
-            });
-            device.queue.writeBuffer(this.#selectedAreaRenderData.uniformBuffer!, 0, this.#selectedAreaRenderData.uniformBufferView!.arrayBuffer);
-
-            pass.setPipeline(this.#selectedAreaRenderData.renderPipeline!);
-            pass.setVertexBuffer(0, vertexBuffer);
-            pass.setIndexBuffer(indexBuffer, "uint32");
-            pass.setBindGroup(0, this.#selectedAreaRenderData.bindGroup);
-            //console.log(`[renderScene] drawing ${meshData.trianglesIndices.length} vertices of selected area`);
-            pass.drawIndexed(meshData.trianglesIndices.length);
         }
 
         //render border grid
@@ -871,6 +833,45 @@ export class Renderer{
             pass.setBindGroup(0, this.#sceneBorderWireRenderData.bindGroup);
             pass.drawIndexed(meshData.trianglesIndices.length);
         }
+
+                //render selected area
+        if(this.#isSelectedAreaRenderDataLoaded()){
+
+            const selectedAreaMesh = scene.getObjectRef().getSelectedAreaMesh();
+            const meshData = selectedAreaMesh!.getVerticesData();
+            //console.log(`[renderScene] selectedAreaVertices: ${meshData.trianglesIndices.length}`)
+
+            const vertexBuffer = device.createBuffer({
+                label: 'vertex data buffer',
+                size: meshData.vertexData.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            });
+            device.queue.writeBuffer(vertexBuffer , 0 , meshData.vertexData);
+
+            const indexBuffer = device.createBuffer({
+                label: 'index data buffer',
+                size: meshData.trianglesIndices.byteLength,
+                usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            });
+            device.queue.writeBuffer(indexBuffer, 0 , meshData.trianglesIndices);
+
+            const shadersUniformsValuesResolution = [canvas.width, canvas.height];
+            this.#selectedAreaRenderData.uniformBufferView!.set({
+                resolution: shadersUniformsValuesResolution,
+                objectTransform: scene.getObjectTransformMatrix().toArrays(),
+                ndcProjection: scene.getPerspectiveProjectionMatrix().toArrays(),
+                viewMatrix: scene.getCameraView().toArrays(),
+            });
+            device.queue.writeBuffer(this.#selectedAreaRenderData.uniformBuffer!, 0, this.#selectedAreaRenderData.uniformBufferView!.arrayBuffer);
+
+            pass.setPipeline(this.#selectedAreaRenderData.renderPipeline!);
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.setIndexBuffer(indexBuffer, "uint32");
+            pass.setBindGroup(0, this.#selectedAreaRenderData.bindGroup);
+            //console.log(`[renderScene] drawing ${meshData.trianglesIndices.length} vertices of selected area`);
+            pass.drawIndexed(meshData.trianglesIndices.length);
+        }
+
         pass.end();
         const commandBuffer = encoder.finish();
         device.queue.submit([commandBuffer]);
