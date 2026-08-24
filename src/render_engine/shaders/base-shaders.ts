@@ -247,7 +247,7 @@ return `
                                     distToEdge);
 
         
-        if (wire < 0.5) {
+        if (wire < 0.3) {
             discard;
         }
 

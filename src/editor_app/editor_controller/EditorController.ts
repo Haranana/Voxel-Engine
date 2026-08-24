@@ -109,7 +109,7 @@ export class EditorController{
     cameraNearMaxValue = 1000;
 
     cameraFarMinValue = 0.001;
-    cameraFarMaxValue = 5000;
+    cameraFarMaxValue = 20000;
 
     cameraDistanceMinValue = 0;
     cameraDistanceMaxValue = 10000;
@@ -222,6 +222,96 @@ export class EditorController{
             cancelAnimationFrame(this.animationFrameId);
         }
     }
+
+    centerCameraAtPositiveX(): boolean{
+        if(!this.initialized) return false;
+        const scene = this.scene!;
+        const camera = scene.getActiveCamera();
+        if(!camera) return false;
+
+        const pitch = 0.0;
+        const yaw = 270.0;
+        this.setCameraPitch(pitch);      
+        this.setCameraYaw(yaw);
+        this.renderScene!();
+        
+        return true;  
+    }
+
+    centerCameraAtPositiveY(): boolean{
+        if(!this.initialized) return false;
+        const scene = this.scene!;
+        const camera = scene.getActiveCamera();
+        if(!camera) return false;
+
+        const pitch = -89.9;
+        const yaw = 0.0;
+        this.setCameraPitch(pitch);      
+        this.setCameraYaw(yaw);
+        this.renderScene!();
+        
+        return true;          
+    }
+    
+    centerCameraAtPositiveZ(): boolean{
+        if(!this.initialized) return false;
+        const scene = this.scene!;
+        const camera = scene.getActiveCamera();
+        if(!camera) return false;
+
+        const pitch = 0.0;
+        const yaw = 180.0;
+        this.setCameraPitch(pitch);      
+        this.setCameraYaw(yaw);
+        this.renderScene!();
+        
+        return true;          
+    }
+    
+    centerCameraAtNegativeX(): boolean{
+        if(!this.initialized) return false;
+        const scene = this.scene!;
+        const camera = scene.getActiveCamera();
+        if(!camera) return false;
+
+        const pitch = 0.0;
+        const yaw = 90.0;
+        this.setCameraPitch(pitch);      
+        this.setCameraYaw(yaw);
+        this.renderScene!();
+        
+        return true;          
+    }
+    
+    centerCameraAtNegativeY(): boolean{
+        if(!this.initialized) return false;
+        const scene = this.scene!;
+        const camera = scene.getActiveCamera();
+        if(!camera) return false;
+
+        const pitch = 89.9;
+        const yaw = 0.0;
+        this.setCameraPitch(pitch);      
+        this.setCameraYaw(yaw);
+        this.renderScene!();
+        
+        return true;          
+    }
+    
+    centerCameraAtNegativeZ(): boolean{
+        if(!this.initialized) return false;
+        const scene = this.scene!;
+        const camera = scene.getActiveCamera();
+        if(!camera) return false;
+
+        const pitch = 0.0;
+        const yaw = 0.0;
+        this.setCameraPitch(pitch);      
+        this.setCameraYaw(yaw);
+        this.renderScene!();
+        
+        return true;          
+    }    
 
     setCameraFovY(newVal: number) {
         if(!this.initialized) return;
@@ -535,6 +625,17 @@ export class EditorController{
         if(!camera) return null;
         return camera.yaw;
     }       
+
+    loadCameraDefaultParameters(): boolean{
+        if(!this.initialized || !this.scene) return false;
+        let camera = this.scene.getActiveCamera(); 
+        if(!camera) return false;
+
+        const newCamera = getSampleCamera(camera.name);        
+        camera.load(newCamera);
+        this.renderScene!();
+        return true;
+    }
     //Select and Edit component
 
     selectAllVoxels(){

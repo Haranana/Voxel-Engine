@@ -56,5 +56,17 @@ export class Camera extends SceneObject {
             new Vector3(0, 1, 0)
         );
     }
+
+    load(c: Camera){
+        this.fovY = c.fovY
+        this.near = c.near;
+        this.far = c.far;
+        this.transform = {...c.transform};
+        this.projectionType = c.projectionType        
+        this.distance = c.distance;
+        this.target = c.target;        
+        this.pitch = c.pitch;
+        this.yaw = c.yaw;
+    }
 }
 

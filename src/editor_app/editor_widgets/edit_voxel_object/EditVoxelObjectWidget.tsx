@@ -18,7 +18,6 @@ export type EditVoxelObjectWidgetProps = {
 
 type Axis = "x"|"y"|"z";
 
-
 export function EditVoxelObjectWidget(props: EditVoxelObjectWidgetProps){
     const controller = useContext(ControllerContext)!;
     const TriggerIcon = props.isOpen? ChevronDownIcon : ChevronRightIcon;
@@ -29,7 +28,6 @@ export function EditVoxelObjectWidget(props: EditVoxelObjectWidgetProps){
     useEffect(()=>{
         controller.subscribeActiveVoSizeChangedSceneEvent(props.onValueChange)
     },[])
-
 
     //if given slider is grouped with others it increases/sets all of them at once, otherwise only the selected one
     function addSizeToGrouped(delta: number, axis: Axis){

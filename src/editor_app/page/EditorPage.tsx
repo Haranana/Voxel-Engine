@@ -8,7 +8,7 @@ import type { VoxelObject } from "../../voxel_engine/scene-objects/voxel/voxel-o
 import type { ResizableContainerConsts } from "../editor_widgets/ResizableContainer";
 import { Vector2 } from "../../math/vector2.type";
 import { SceneRenderCollector } from "../../voxel_engine/scene/scene-render-collector";
-import CameraPropertiesWidget from "../editor_widgets/CameraPropertiesWidget";
+import CameraPropertiesWidget from "../editor_widgets/camera_properties/CameraPropertiesWidget";
 import { ActionButtonsPanel, type ActionButtonData } from "../editor_widgets/ActionButtonsPanel";
 import { SelectToolsWidget } from "../editor_widgets/select_tools/SelectToolsWidget";
 import { EditToolsWidget } from "../editor_widgets/edit_tools/EditToolsWidget";
@@ -329,6 +329,7 @@ export default function EditorPage() {
   const cameraPropertiesWidget : React.ReactNode = <CameraPropertiesWidget
     isOpen={isCameraPropertiesWidgetOpen}
     onOpenChange={setIsCameraPropertiesWidgetOpen}
+    onValueChange={()=>setCameraPropertiesVersion(prev=>(prev+1))}
   />
   
   const [isSelectToolsWidgetOpen, setIsSelectToolsWidgetOpen] = useState<boolean>(true);

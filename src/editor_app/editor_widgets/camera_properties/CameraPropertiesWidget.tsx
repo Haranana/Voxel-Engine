@@ -1,21 +1,108 @@
-import { useContext} from "react";
-import { ExpandableRow } from "./ExpandableRow";
-import { MutableNumberField } from "./MutableNumberField";
+import { useContext, useState} from "react";
+import { ExpandableRow } from "../ExpandableRow";
+import { MutableNumberField } from "../MutableNumberField";
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/16/solid";
-import "./ExpandableRow.css";
-import type { ProjectionType } from "../../voxel_engine/scene-objects/camera/camera";
-import { ControllerContext } from "../editor_controller/ControllerContext";
+import './CameraProperties.css'
+import { ControllerContext } from "../../editor_controller/ControllerContext";
+import type { ProjectionType } from "../../../voxel_engine/scene-objects/camera/camera";
+import MdiLockOutline from "../../icons/MdiLockOutline";
+import MdiLockOpenVariantOutline from "../../icons/MdiLockOpenVariantOutline";
 
 export type CameraPropertiesProps = {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
+    onValueChange: ()=>void;
 };
+
+type Axis = "x"|"y"|"z";
 
 export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
     const controller = useContext(ControllerContext)!;
-    //let camera: Camera  = controller;
+    const [isTargetXLocked, setTargetXLocked] = useState<boolean>(true); 
+    const [isTargetYLocked, setTargetYLocked] = useState<boolean>(true); 
+    const [isTargetZLocked, setTargetZLocked] = useState<boolean>(true); 
 
     const TriggerIcon = props.isOpen ? ChevronDownIcon : ChevronRightIcon;
+
+    function addTargetToGrouped(delta: number, axis: Axis){
+        let modifyX: boolean = false;
+        let modifyY: boolean = false;
+        let modifyZ: boolean = false;  
+        if(axis=="x"){
+            modifyX = true;
+            if(isTargetXLocked){
+                if(isTargetYLocked){
+                    modifyY = true;
+                }
+                if(isTargetZLocked){
+                    modifyZ = true;
+                }
+            }
+        }else if(axis=="y"){
+            modifyY = true;
+            if(isTargetYLocked){
+                if(isTargetXLocked){
+                    modifyX = true;
+                }
+                if(isTargetZLocked){
+                    modifyZ = true;
+                }
+            }
+        }else if(axis=="z"){
+            modifyZ = true;
+            if(isTargetZLocked){
+                if(isTargetXLocked){
+                    modifyX = true;
+                }
+                if(isTargetYLocked){
+                    modifyY = true;
+                }
+            }
+        }
+        if(modifyX) controller.addCameraTargetX(delta);
+        if(modifyY) controller.addCameraTargetY(delta);
+        if(modifyZ) controller.addCameraTargetZ(delta);
+    }
+
+    function setTargetToGrouped(value: number, axis: Axis){
+        let modifyX: boolean = false;
+        let modifyY: boolean = false;
+        let modifyZ: boolean = false;  
+        if(axis=="x"){
+            modifyX = true;
+            if(isTargetXLocked){
+                if(isTargetYLocked){
+                    modifyY = true;
+                }
+                if(isTargetZLocked){
+                    modifyZ = true;
+                }
+            }
+        }else if(axis=="y"){
+            modifyY = true;
+            if(isTargetYLocked){
+                if(isTargetXLocked){
+                    modifyX = true;
+                }
+                if(isTargetZLocked){
+                    modifyZ = true;
+                }
+            }
+        }else if(axis=="z"){
+            modifyZ = true;
+            if(isTargetZLocked){
+                if(isTargetXLocked){
+                    modifyX = true;
+                }
+                if(isTargetYLocked){
+                    modifyY = true;
+                }
+            }
+        }
+        if(modifyX) controller.setCameraTargetX(value);
+        if(modifyY) controller.setCameraTargetY(value);
+        if(modifyZ) controller.setCameraTargetZ(value);
+    }
 
     return (
         <ExpandableRow
@@ -28,11 +115,11 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
             isOpen={props.isOpen}
             onOpenChange={props.onOpenChange}
         >
-            <div className="CameraProperties ExpandableRowChild">
-                <div className="CameraProjectionProperties ExpendableRowChildSection">
-                    <p>Projection</p>
-
-                    <div className="PropertiesRow">
+            <div className="CameraPropertiesWidget">
+                
+                <div className="CameraProjectionProperties">
+                    <p className="WidgetButtonsPanelTitle">Projection</p>
+                    <div className="MutableFieldWrapper ProjectionFieldWrapper">
                         <p className="MutableFieldTitle">Type</p>
                         <select
                             className="Input"
@@ -47,8 +134,7 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                             <option value="orthographic">orthographic</option>
                         </select>
                     </div>
-
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">Fov Y</p>
                         <MutableNumberField
                             value={controller.getCameraFovY() ?? 0}
@@ -64,8 +150,7 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                             inputId={"CameraFovYValue"}
                         />
                     </div>
-
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">Near</p>
                         <MutableNumberField
                             value={controller.getCameraNear() ?? 0}
@@ -81,8 +166,7 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                             inputId={"CameraNearValue"}
                         />
                     </div>
-
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">Far</p>
                         <MutableNumberField
                             value={controller.getCameraFar() ?? 0}
@@ -96,15 +180,18 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                             canIncrease
                             canDecrease
                             inputId={"CameraFarValue"}
+                            intervalLength={1}
                         />
-                    </div>
+                    </div>                
                 </div>
 
-                <div className="CameraOrbitProperties ExpendableRowChildSection">
+
+
+                <div className="CameraOrbitProperties">
                     <p>Orbit</p>
 
-                    <div className="PropertiesRow">
-                        <p className="MutableFieldTitle">Distance</p>
+                    <div className="MutableFieldWrapper">
+                        <p className="MutableFieldTitle">Span</p>
                         <MutableNumberField
                             value={controller.getCameraDistance() ?? 0}
                             minValue={controller.cameraDistanceMinValue}
@@ -120,7 +207,7 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         />
                     </div>
 
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">Pitch</p>
                         <MutableNumberField
                             value={controller.getCameraPitch() ?? 0}
@@ -137,7 +224,7 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                         />
                     </div>
 
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">Yaw</p>
                         <MutableNumberField
                             value={controller.getCameraYaw() ?? 0}
@@ -153,56 +240,77 @@ export default function CameraPropertiesWidget(props: CameraPropertiesProps) {
                             inputId={"CameraYawValue"}
                         />
                     </div>
+                    
+                    <div className="WidgetButtonsPanelWrapper">
+                        <div className="WidgetButtonsPanel">
+                            <button onClick={()=>{controller.centerCameraAtPositiveX(); props.onValueChange()}}>+X</button>
+                            <button onClick={()=>{controller.centerCameraAtPositiveY(); props.onValueChange()}}>+Y</button>
+                            <button onClick={()=>{controller.centerCameraAtPositiveZ(); props.onValueChange()}}>+Z</button>
+                            <button onClick={()=>{controller.centerCameraAtNegativeX(); props.onValueChange()}}>-X</button>
+                            <button onClick={()=>{controller.centerCameraAtNegativeY(); props.onValueChange()}}>-Y</button>
+                            <button onClick={()=>{controller.centerCameraAtNegativeZ(); props.onValueChange()}}>-Z</button>
+                        </div>
+                    </div>
+                    
                 </div>
-
-                <div className="CameraTargetProperties ExpendableRowChildSection">
+                <div className="CameraTargetProperties">
                     <p>Target</p>
 
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">X</p>
                         <MutableNumberField
                             value={controller.getCameraTarget()?.x ?? 0}
                             step={20}
-                            onStep={(delta) => controller.addCameraTargetX(delta)}
-                            onAcceptedChange={(value) =>
-                                controller.setCameraTargetX(value)
-                            }
+                            onStep={(delta) => addTargetToGrouped(delta, "x")}
+                            onAcceptedChange={(value) =>setTargetToGrouped(value, "x")}
                             canIncrease
                             canDecrease
                             inputId={"CameraTargetXValue"}
                         />
+                    <button className="targetLockButton" onClick={()=>setTargetXLocked(prev=>!prev)}>
+                        {isTargetXLocked? <MdiLockOutline/> : <MdiLockOpenVariantOutline/>}
+                    </button>                        
                     </div>
 
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">Y</p>
                         <MutableNumberField
                             value={controller.getCameraTarget()?.y ?? 0}
                             step={20}
-                            onStep={(delta) => controller.addCameraTargetY(delta)}
-                            onAcceptedChange={(value) =>
-                                controller.setCameraTargetY(value)
-                            }
+                            onStep={(delta) => addTargetToGrouped(delta, "y")}
+                            onAcceptedChange={(value) =>setTargetToGrouped(value, "y")}
                             canIncrease
                             canDecrease
                             inputId={"CameraTargetYValue"}
                         />
+                    <button className="targetLockButton" onClick={()=>setTargetYLocked(prev=>!prev)}>
+                        {isTargetYLocked? <MdiLockOutline/> : <MdiLockOpenVariantOutline/>}
+                    </button>                        
                     </div>
 
-                    <div className="PropertiesRow">
+                    <div className="MutableFieldWrapper">
                         <p className="MutableFieldTitle">Z</p>
                         <MutableNumberField
                             value={controller.getCameraTarget()?.z ?? 0}
                             step={20}
-                            onStep={(delta) => controller.addCameraTargetZ(delta)}
-                            onAcceptedChange={(value) =>
-                                controller.setCameraTargetZ(value)
-                            }
+                            onStep={(delta) => addTargetToGrouped(delta, "z")}
+                            onAcceptedChange={(value) =>setTargetToGrouped(value, "z")}
                             canIncrease
                             canDecrease
                             inputId={"CameraTargetZValue"}
                         />
+                    <button className="targetLockButton" onClick={()=>setTargetZLocked(prev=>!prev)}>
+                        {isTargetZLocked? <MdiLockOutline/> : <MdiLockOpenVariantOutline/>}
+                    </button>  
+
+
                     </div>
                 </div>
+                <div className="WidgetButtonsPanelWrapper">
+                    <div className="WidgetButtonsPanel DefaultCameraButtonsPanel">
+                        <button onClick={()=>{controller.loadCameraDefaultParameters(); props.onValueChange()}}>Load Default</button>
+                    </div>     
+                </div>                
             </div>
         </ExpandableRow>
     );

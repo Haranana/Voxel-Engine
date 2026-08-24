@@ -1,5 +1,5 @@
 import { RenderableObject } from "../../render_engine/renderableObjects/renderableObject";
-import { screenObjectShader, worldObjectGridShader, worldObjectOutlineShader, worldObjectQuadWireframeShader, worldObjectShader } from "../../render_engine/shaders/base-shaders";
+import { screenObjectShader, worldObjectGridShader, worldObjectShader } from "../../render_engine/shaders/base-shaders";
 import { Shader } from "../../render_engine/shaders/shader";
 import { CameraShaderResources, ScreenObjectShaderResources, ViewportShaderResources, WorldObjectShaderResources } from "../../render_engine/shaders/shader-resource";
 import type { Gizmo } from "./gizmo/gizmo-object";
