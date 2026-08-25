@@ -4,11 +4,12 @@ import type { Vector4 } from "../../math/vector4.type"
 import type { Mesh, VertexLayout } from "./Mesh"
 
 
+// By default frontFace = "cw" and cullmode = "back" 
 export type MeshBuilderVertexLayout = {
     topology: "line-list" | "triangle-list" //only supported topologies are line-list and triangle-list
     attributes: MeshAttribute[]
     frontFace?: "cw" | "ccw"
-    cullMode?: "front" | "back"
+    cullMode?: "front" | "back" | "none"
 }
 
 //refers to optional fields that should be expected from any vertex that is used by the MeshBuilder

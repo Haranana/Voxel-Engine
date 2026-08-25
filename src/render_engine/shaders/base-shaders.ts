@@ -5,6 +5,14 @@ export const shaderViewportResourceCode: string =
     };
 `
 
+export const shaderGizmoCameraResourceCode: string = 
+`
+    struct ShaderGizmoCameraResource{
+        viewMatrix: mat4x4f,    
+        projectionMatrix: mat4x4f    
+    };
+`
+
 export const shaderCameraResourceCode: string = 
 `
     struct ShaderCameraResource{
@@ -36,6 +44,158 @@ fn fequal(a : f32, b: f32) -> bool{
     return abs(a - b) < 0.04;
 }
 `
+
+const matrixFunctionsCode: string =
+`
+fn mat3Identity() -> mat3x3f {
+    return mat3x3f(
+        vec3f(1.0, 0.0, 0.0),
+        vec3f(0.0, 1.0, 0.0),
+        vec3f(0.0, 0.0, 1.0)
+    );
+}
+
+fn mat3Translation(v: vec2f) -> mat3x3f {
+    return mat3x3f(
+        vec3f(1.0, 0.0, 0.0),
+        vec3f(0.0, 1.0, 0.0),
+        vec3f(v.x, v.y, 1.0)
+    );
+}
+
+fn mat3Scaling(v: vec2f) -> mat3x3f {
+    return mat3x3f(
+        vec3f(v.x, 0.0, 0.0),
+        vec3f(0.0, v.y, 0.0),
+        vec3f(0.0, 0.0, 1.0)
+    );
+}
+
+fn mat3Rotation(angle: f32) -> mat3x3f {
+    let c = cos(angle);
+    let s = sin(angle);
+
+    return mat3x3f(
+        vec3f(c, s, 0.0),
+        vec3f(-s, c, 0.0),
+        vec3f(0.0, 0.0, 1.0)
+    );
+}
+
+fn mat3Shearing(v: vec2f) -> mat3x3f {
+    return mat3x3f(
+        vec3f(1.0, v.y, 0.0),
+        vec3f(v.x, 1.0, 0.0),
+        vec3f(0.0, 0.0, 1.0)
+    );
+}
+
+
+fn mat4Identity() -> mat4x4f {
+    return mat4x4f(
+        vec4f(1.0, 0.0, 0.0, 0.0),
+        vec4f(0.0, 1.0, 0.0, 0.0),
+        vec4f(0.0, 0.0, 1.0, 0.0),
+        vec4f(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+fn mat4Translation(v: vec3f) -> mat4x4f {
+    return mat4x4f(
+        vec4f(1.0, 0.0, 0.0, 0.0),
+        vec4f(0.0, 1.0, 0.0, 0.0),
+        vec4f(0.0, 0.0, 1.0, 0.0),
+        vec4f(v.x, v.y, v.z, 1.0)
+    );
+}
+
+fn mat4Scaling(v: vec3f) -> mat4x4f {
+    return mat4x4f(
+        vec4f(v.x, 0.0, 0.0, 0.0),
+        vec4f(0.0, v.y, 0.0, 0.0),
+        vec4f(0.0, 0.0, v.z, 0.0),
+        vec4f(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+fn mat4RotationX(angle: f32) -> mat4x4f {
+    let c = cos(angle);
+    let s = sin(angle);
+
+    return mat4x4f(
+        vec4f(1.0, 0.0, 0.0, 0.0),
+        vec4f(0.0, c, s, 0.0),
+        vec4f(0.0, -s, c, 0.0),
+        vec4f(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+fn mat4RotationY(angle: f32) -> mat4x4f {
+    let c = cos(angle);
+    let s = sin(angle);
+
+    return mat4x4f(
+        vec4f(c, 0.0, -s, 0.0),
+        vec4f(0.0, 1.0, 0.0, 0.0),
+        vec4f(s, 0.0, c, 0.0),
+        vec4f(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+fn mat4RotationZ(angle: f32) -> mat4x4f {
+    let c = cos(angle);
+    let s = sin(angle);
+
+    return mat4x4f(
+        vec4f(c, s, 0.0, 0.0),
+        vec4f(-s, c, 0.0, 0.0),
+        vec4f(0.0, 0.0, 1.0, 0.0),
+        vec4f(0.0, 0.0, 0.0, 1.0)
+    );
+}
+
+fn mat4Rotation(angleX: f32, angleY: f32, angleZ: f32) -> mat4x4f {
+    return mat4RotationZ(angleZ) *
+           mat4RotationY(angleY) *
+           mat4RotationX(angleX);
+}
+
+fn mat4Transform(
+    translation: vec3f,
+    rotation: vec3f,
+    scale: vec3f
+) -> mat4x4f {
+    return mat4Translation(translation) *
+           mat4Rotation(rotation.x, rotation.y, rotation.z) *
+           mat4Scaling(scale);
+}
+
+fn lightView(
+    eye: vec3f,
+    targetPosition: vec3f,
+    up: vec3f
+) -> mat4x4f {
+
+    let f = normalize(targetPosition - eye);       // forward
+    let r = normalize(cross(f, up));       // right
+    let u = cross(r, f);                   // up (ortho)
+
+    return mat4x4f(
+        vec4f(r.x,  r.y,  r.z,  -dot(r, eye)),
+        vec4f(u.x,  u.y,  u.z,  -dot(u, eye)),
+        vec4f(-f.x, -f.y, -f.z,  dot(f, eye)),
+        vec4f(0.0,  0.0,  0.0,   1.0)
+    );
+}
+
+fn eyeFromOrbit(targetPosition: vec3f, distance: f32, pitch: f32, yaw: f32) -> vec3f {
+    return vec3f(
+        targetPosition.x + distance * cos(pitch) * sin(yaw),
+        targetPosition.y + distance * sin(pitch),
+        targetPosition.z + distance * cos(pitch) * cos(yaw)
+    );
+}
+`;
 
 export function worldObjectShader(){
     return `
@@ -90,6 +250,8 @@ export function screenObjectShader(){
     @group(1) @binding(0) var<uniform> cameraBuffer: ShaderCameraResource;
     ${shaderScreenObjectResourceCode}
     @group(2) @binding(0) var<uniform> objectBuffer: ShaderScreenObjectResource;
+    ${shaderGizmoCameraResourceCode}
+    @group(3) @binding(0) var<uniform> gizmoCameraBuffer: ShaderGizmoCameraResource; 
 
     struct Vertex{
         @location(0) position: vec3f,
@@ -104,17 +266,22 @@ export function screenObjectShader(){
     };
 
     ${fequalFunctionCode}
+    ${matrixFunctionsCode}
 
     @vertex fn vertexShader(
-        v: Vertex) -> VertexShaderOutput {
-        
+        v: Vertex) -> VertexShaderOutput {        
         var out: VertexShaderOutput;
 
-        let transform = objectBuffer.translation * objectBuffer.rotation * objectBuffer.scale;         
-        let vertPixelPosition = transform * vec4f(v.position, 1.0);
+        let anchorNdc = objectBuffer.anchor;
+        let transform = objectBuffer.rotation * objectBuffer.scale;      
+        
+        let modelPosition = vec4f(v.position, 1.0);
+        let worldPosition = transform * modelPosition; 
+        let clipPosition = (gizmoCameraBuffer.projectionMatrix * gizmoCameraBuffer.viewMatrix * worldPosition).xyzw;
+        
+        
+        out.position = vec4f(clipPosition.x + anchorNdc.x * clipPosition.w , clipPosition.y + anchorNdc.y * clipPosition.w , clipPosition.z, clipPosition.w);
 
-        let vertNdcPosition = (cameraBuffer.ndcProjection * cameraBuffer.viewMatrix * vertPixelPosition).xyzw;
-        out.position = vec4f(vertNdcPosition);
         out.quadUV = v.quadUV;
         out.color = v.color;
 

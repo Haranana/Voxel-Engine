@@ -1,9 +1,10 @@
+import { degreeToRadians } from "../../math/utils";
 import { Vector2 } from "../../math/vector2.type";
 import { Vector3 } from "../../math/vector3.type";
 import { RenderableObject} from "../../render_engine/renderableObjects/renderableObject";
 import { screenObjectShader, worldObjectShader } from "../../render_engine/shaders/base-shaders";
 import { Shader } from "../../render_engine/shaders/shader";
-import { CameraShaderResources, ScreenObjectShaderResources, ViewportShaderResources } from "../../render_engine/shaders/shader-resource";
+import { CameraShaderResources, GizmoCameraShaderResources, ScreenObjectShaderResources, ViewportShaderResources } from "../../render_engine/shaders/shader-resource";
 import type { Camera } from "../scene-objects/camera/camera";
 import { generateCameraControllsGizmoMesh, generateMoveGizmoMesh, generateResizeGizmoMesh, generateRotateGizmoMesh } from "../scene-objects/gizmo/gizmo-mesh-generator";
 import { Gizmo } from "../scene-objects/gizmo/gizmo-object";
@@ -17,7 +18,7 @@ export class SceneGizmos{
 
     static #getScreenGizmoShader(): Shader{
         return new Shader(screenObjectShader(),"vertexShader","fragmentShader",
-        [new ViewportShaderResources(0), new CameraShaderResources(1), new ScreenObjectShaderResources(2)]);
+        [new ViewportShaderResources(0), new CameraShaderResources(1), new ScreenObjectShaderResources(2), new GizmoCameraShaderResources(3)]);
     }
 
     //objects themselved to be created later
@@ -25,7 +26,7 @@ export class SceneGizmos{
     static getCameraControllGizmoRo(camera: Camera): RenderableObject{
         const gizmo = this.#cameraControllGizmo;
         
-        gizmo.screenTransform =gizmo.screenTransform? {...gizmo.screenTransform, rotation: new Vector3(camera.pitch, camera.yaw, 0.0)} : null;        
+        gizmo.screenTransform =gizmo.screenTransform? {...gizmo.screenTransform, rotation: new Vector3(degreeToRadians(camera.pitch), degreeToRadians(camera.yaw), 0.0)} : null;        
         if(!gizmo.gizmoRo){
             gizmo.gizmoRo = RenderableObjectManager.createGizmoRo(gizmo);            
         }
@@ -33,17 +34,17 @@ export class SceneGizmos{
 
         return gizmo.gizmoRo;
     }
+
     static #createCameraControllGizmo(): Gizmo{
         const out = new Gizmo("camera gizmo");
         out.mesh = generateCameraControllsGizmoMesh();
         out.worldTransform = null;
         out.screenTransform = {
-            anchor: new Vector2(0.85,0.15),
+            anchor: new Vector2(0.8,0.8),
             scale: new Vector3(1,1,1),
             rotation: new Vector3(0,0,0),
         }
         out.gizmoType = "screen";
-        out.disabled = true;
         out.gizmoRo = RenderableObjectManager.createGizmoRo(out);
 
         return out;
@@ -75,7 +76,6 @@ export class SceneGizmos{
             rotation: new Vector3(0,0,0),
         }
         out.gizmoType = "world";
-        out.disabled = true;
         out.gizmoRo = RenderableObjectManager.createGizmoRo(out);
 
         return out;
@@ -103,7 +103,6 @@ export class SceneGizmos{
             rotation: new Vector3(0,0,0),
         }
         out.gizmoType = "world";
-        out.disabled = true;
         out.gizmoRo = RenderableObjectManager.createGizmoRo(out);
 
         return out;
@@ -131,7 +130,6 @@ export class SceneGizmos{
             rotation: new Vector3(0,0,0),
         }
         out.gizmoType = "world";
-        out.disabled = true;
         out.gizmoRo = RenderableObjectManager.createGizmoRo(out);
 
         return out;

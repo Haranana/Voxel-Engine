@@ -4,6 +4,7 @@ import { Vector2 } from "../math/vector2.type";
 import type { ShaderResourceContext} from "./shaders/shader-resource";
 import type { Matrix4 } from "../math/matrix4.type";
 import { GPUMeshCache } from "./meshes/mesh-cache";
+import type { Vector3 } from "../math/vector3.type";
 
 export type ShaderGPUResources = {
     pipeline: GPURenderPipeline;
@@ -22,6 +23,7 @@ export type RenderContext = {
     queue: GPUQueue | null,
     cameraContext: CameraContext | null,
     viewportContext: ViewportContext | null,
+    gizmoCameraContext: GizmoCameraContext | null,
     timeContext: TimeContext | null,
     globalData: unknown,
 }
@@ -29,6 +31,11 @@ export type RenderContext = {
 export type CameraContext = {
     viewMatrix: Matrix4,
     ndcProjection: Matrix4,
+}
+
+export type GizmoCameraContext = {
+    pitch: number,
+    yaw: number,
 }
 
 export type ViewportContext = {
@@ -62,8 +69,10 @@ export class Renderer{
     #canvas: HTMLCanvasElement | null = null
     #context: GPUCanvasContext | null = null
     #presentationFormat: GPUTextureFormat | null = null
-    #depthTexture: GPUTexture | null = null
-    #renderPassDescriptor: GPURenderPassDescriptor | null = null
+    #depthTexture: GPUTexture | null = null    
+    #gizmosDepthTexture: GPUTexture | null = null
+
+
     initialized: boolean = false;
     initializing: boolean = false;
 
@@ -105,23 +114,12 @@ export class Renderer{
             format: 'depth24plus',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         });
-        this.#renderPassDescriptor = {
-        label: `basic canvas renderPass`,
-        colorAttachments: [
-            {
-                view: canvasTexture.createView(),
-                loadOp: 'clear',
-                storeOp: 'store',                    
-            },
-        ],
-            depthStencilAttachment: {
-            view: this.#depthTexture.createView(),
-            depthClearValue: 1.0,
-            depthLoadOp: 'clear',
-            depthStoreOp: 'store',
-            },
-        };
-        
+        this.#gizmosDepthTexture = this.#device.createTexture({
+            size: [canvasTexture.width, canvasTexture.height],
+            format: 'depth24plus',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+
         this.initialized = true;
         this.initializing = false;
         return true
@@ -139,23 +137,20 @@ export class Renderer{
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         });
 
-        this.#renderPassDescriptor = {
-        label: `basic canvas renderPass`,
-        colorAttachments: [
-            {
-                view: canvasTexture.createView(),
-                loadOp: 'clear',
-                storeOp: 'store',                    
-            },
-        ],
-            depthStencilAttachment: {
-            view: this.#depthTexture.createView(),
-            depthClearValue: 1.0,
-            depthLoadOp: 'clear',
-            depthStoreOp: 'store',
-            },
-        };
     }
+
+    updateSecondaryDepthTexture(){
+        if(!this.initialized) false;
+        const context = this.#context!;
+        const device = this.#device!;
+
+        const canvasTexture = context.getCurrentTexture();
+        this.#gizmosDepthTexture = device.createTexture({
+            size: [canvasTexture.width, canvasTexture.height],
+            format: 'depth24plus',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+    }    
 
     renderScene(objects: RenderableObject[], renderContext: RenderContext){
         //console.log("[renderScene] called with " + objects.length +" objects")
@@ -179,33 +174,36 @@ export class Renderer{
             this.#depthTexture!.destroy();
             this.updateDepthTexture();
         };
+        if (this.#gizmosDepthTexture!.width !== canvasTexture.width ||
+            this.#gizmosDepthTexture!.height !== canvasTexture.height) {
+
+            this.#gizmosDepthTexture!.destroy();
+            this.updateSecondaryDepthTexture();
+        };
 
         const encoder : GPUCommandEncoder = device.createCommandEncoder({
             label: 'GPU command encoder'
         });
 
-        this.#renderPassDescriptor = {
-        label: `basic canvas renderPass`,
-        colorAttachments: [
-            {
-                view: canvasTexture.createView(),
-                loadOp: 'clear',
-                storeOp: 'store',                    
-            },
-        ],
-            depthStencilAttachment: {
-            view: this.#depthTexture!.createView(),
-            depthClearValue: 1.0,
-            depthLoadOp: 'clear',
-            depthStoreOp: 'store',
-            },
-        };
-        const pass : GPURenderPassEncoder = encoder.beginRenderPass(this.#renderPassDescriptor!);                
-        
-        //console.log("[renderScene] init finished ")
-        objects.forEach((obj, id)=>{
-            //console.log("[renderScene] obj: " + obj.name + " vertices: " + obj.mesh?.vertices.length + " | indices: " + obj.mesh?.indices.length)
-            if(!obj.mesh || !obj.material) return;
+                                
+        const pass : GPURenderPassEncoder = encoder.beginRenderPass({
+            label: `basic canvas renderPassDescriptor`,
+            colorAttachments: [
+                {
+                    view: canvasTexture.createView(),
+                    loadOp: 'clear',
+                    storeOp: 'store',                    
+                },
+            ],
+                depthStencilAttachment: {
+                view: this.#depthTexture!.createView(),
+                depthClearValue: 1.0,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+                },
+        });
+        objects.forEach((obj, id)=>{            
+            if(!obj.mesh || !obj.material ||obj.useSecondaryDepthTexture) return;
             
             const meshResources = this.#meshCache.get(obj.mesh); 
             let vertexBuffer;
@@ -326,8 +324,149 @@ export class Renderer{
             pass.drawIndexed(obj.mesh.indices.length);
             //console.log("[renderScene]Drawed: " + obj.name);
         });
-
         pass.end();
+
+        const gizmoPass: GPURenderPassEncoder = encoder.beginRenderPass({
+            label: `secondary (gizmos) canvas renderPassDescriptor`,
+            colorAttachments: [
+                {
+                    view: canvasTexture.createView(),
+                    loadOp: 'load',
+                    storeOp: 'store',                    
+                },
+            ],
+                depthStencilAttachment: {
+                view: this.#gizmosDepthTexture!.createView(),
+                depthClearValue: 1.0,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+                },
+        });
+        objects.forEach((obj, id)=>{            
+            if(!obj.mesh || !obj.material || !obj.useSecondaryDepthTexture) return;
+            
+            const meshResources = this.#meshCache.get(obj.mesh); 
+            let vertexBuffer;
+            let indexBuffer;
+
+            //filling index and vertex buffer and updating mesh cache
+            if(meshResources){
+                vertexBuffer = meshResources.vertexBuffer;
+                indexBuffer = meshResources.indexBuffer;
+            }else{    
+                vertexBuffer = device.createBuffer({
+                    label: 'vertex data buffer',
+                    size: obj.mesh.vertices.byteLength,
+                    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                });
+                device.queue.writeBuffer(vertexBuffer , 0 , obj.mesh.vertices);
+
+                indexBuffer = device.createBuffer({
+                    label: 'index data buffer',
+                    size: obj.mesh.indices.byteLength,
+                    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+                });
+                device.queue.writeBuffer(indexBuffer, 0 , obj.mesh.indices);     
+                this.#meshCache.set(obj.mesh, {
+                    vertexBuffer,
+                    indexBuffer,
+                });                 
+            }
+
+            //initializing and updating shader resources, fetching bind groups and their layouts
+            const bindGroups : Map<number, GPUBindGroup> = new Map<number, GPUBindGroup>();
+            const bindGroupLayouts: GPUBindGroupLayout[] = []
+            let objectRenderError: boolean = false;
+            obj.material.shader.resources.forEach((res)=>{
+                const shaderResourceContext: ShaderResourceContext = {
+                    object: obj,
+                    renderContext: renderContext,
+                };
+                const bindGroupLayout = device.createBindGroupLayout(res.getBindGroupLayoutDescriptor(shaderResourceContext)) ;
+                bindGroupLayouts.push(bindGroupLayout);
+
+                let initSuccess;
+                let updateSuccess; 
+                if(!res.initialized){
+                    initSuccess = res.init(shaderResourceContext, bindGroupLayout)
+                    if(!initSuccess){
+                        console.error("[renderScene] couldn't init shaderResource");
+                        objectRenderError = true;
+                        return;                        
+                    }
+                }
+                
+                updateSuccess = res.update(shaderResourceContext);
+                if(!updateSuccess){
+                    console.error("[renderScene] couldn't update shaderResource");
+                    objectRenderError = true;
+                    return;  
+                }
+                const bindGroup = res.getBindGroup()!;
+                const groupId = res.bindGroupNumber;
+                bindGroups.set(groupId, bindGroup);
+            })
+            if(objectRenderError){
+                console.log("[renderScene] objectRenderError")
+                return;
+            }
+
+            //creating render pipeline
+            const shader = obj.material.shader;
+            const shaderModule = device.createShaderModule({code: shader.code})
+            debugShader(shaderModule);
+            const pipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: bindGroupLayouts,
+            });
+
+            const renderPipeline = device.createRenderPipeline({
+                label: 'Selected object mesh pipeline',
+                layout: pipelineLayout,
+                vertex: {
+                    entryPoint: shader.vertexEntryPoint,
+                    module: shaderModule,
+                    buffers:[
+                        {
+                            arrayStride: obj.mesh.layout.stride,
+                            attributes: obj.mesh.layout.attributes,
+                        }
+                    ]
+                },
+                fragment: {
+                    entryPoint: shader.fragmentEntryPoint,
+                    module: shaderModule,
+                    targets: [{format: this.#presentationFormat!,
+                        blend: {
+                            color: {
+                                srcFactor: "src-alpha",
+                                dstFactor: "one-minus-src-alpha",
+                                operation: "add",
+                            },
+                            alpha: {
+                                srcFactor: "one",
+                                dstFactor: "one-minus-src-alpha",
+                                operation: "add",
+                            },
+                },
+                    }],
+
+                },
+                primitive: obj.mesh.primitiveState,
+                depthStencil: obj.mesh.depthStencilState
+            });
+
+            gizmoPass.setPipeline(renderPipeline);
+            gizmoPass.setVertexBuffer(0 , vertexBuffer);
+            gizmoPass.setIndexBuffer(indexBuffer, "uint32");
+            bindGroups.forEach((group,id)=>{
+                gizmoPass.setBindGroup(id, group);
+            })            
+            gizmoPass.drawIndexed(obj.mesh.indices.length);
+            //console.log("[renderScene]Drawed: " + obj.name);
+        });
+        gizmoPass.end();
+        
+        
         const commandBuffer = encoder.finish();
         device.queue.submit([commandBuffer]);
         //console.log("[renderScene] commandBuffer submitted");

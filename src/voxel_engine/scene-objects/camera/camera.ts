@@ -57,6 +57,14 @@ export class Camera extends SceneObject {
         );
     }
 
+    getForward(): Vector3{
+        return new Vector3(
+            Math.cos(degreeToRadians(this.pitch)) * Math.sin(degreeToRadians(this.yaw)),
+            Math.sin(degreeToRadians(this.pitch)),
+            Math.cos(degreeToRadians(this.pitch)) * Math.cos(degreeToRadians(this.yaw)),
+        );
+    }
+
     load(c: Camera){
         this.fovY = c.fovY
         this.near = c.near;

@@ -8,7 +8,7 @@ export type GizmoType = "world" | "screen";
 
 export class Gizmo extends SceneObject{
     screenTransform: ScreenOverlayTransform | null = {
-        anchor: new Vector2(0,0),
+        anchor: new Vector2(0,0), //refers to position in NDC
         scale: new Vector3(1,1,1),
         rotation: new Vector3(1,1,1),
     }
@@ -17,6 +17,7 @@ export class Gizmo extends SceneObject{
         scale: new Vector3(1,1,1),
         rotation: new Vector3(1,1,1),
     }
+    
     
     gizmoType: GizmoType = "world";
     mesh: Mesh | null = null;

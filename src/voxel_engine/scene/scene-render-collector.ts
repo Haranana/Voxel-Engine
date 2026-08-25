@@ -70,6 +70,7 @@ export class SceneRenderCollector{
             if(scene.sceneGizmosRenderOptions.cameraControllGizmo){
                 const newRenderableObject = SceneGizmos.getCameraControllGizmoRo(camera);
                 out.push(newRenderableObject);
+            }else{
             }
             if(scene.sceneGizmosRenderOptions.objectMoveGizmo){
                 const newRenderableObject = SceneGizmos.getMoveRoGizmoRo(selectedRo);

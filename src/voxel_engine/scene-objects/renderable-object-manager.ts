@@ -1,7 +1,7 @@
 import { RenderableObject } from "../../render_engine/renderableObjects/renderableObject";
 import { screenObjectShader, worldObjectGridShader, worldObjectShader } from "../../render_engine/shaders/base-shaders";
 import { Shader } from "../../render_engine/shaders/shader";
-import { CameraShaderResources, ScreenObjectShaderResources, ViewportShaderResources, WorldObjectShaderResources } from "../../render_engine/shaders/shader-resource";
+import { CameraShaderResources, GizmoCameraShaderResources, ScreenObjectShaderResources, ViewportShaderResources, WorldObjectShaderResources } from "../../render_engine/shaders/shader-resource";
 import type { Gizmo } from "./gizmo/gizmo-object";
 import { generateVoBorderGridMesh, generateVoBorderOutlineMesh, generateVoGridMesh, generateVoMesh, generateVoSelectedAreaMesh} from "./voxel/voxel-mesh-generator";
 import type { SelectedAreaType, VoxelObject } from "./voxel/voxel-object";
@@ -178,11 +178,11 @@ export class RenderableObjectManager{
         const out: RenderableObject = new RenderableObject();
         if(gizmo.gizmoType === "world"){ 
             const shader = new Shader(worldObjectShader(), "vertexShader", "fragmentShader", 
-            [new ViewportShaderResources(0) ,new CameraShaderResources(1),new WorldObjectShaderResources(2)]);
+            [new ViewportShaderResources(0) ,new CameraShaderResources(1),new WorldObjectShaderResources(2), new GizmoCameraShaderResources(3)]);
             out.material = {shader};
         }else if(gizmo.gizmoType === "screen"){
             const shader = new Shader(screenObjectShader(), "vertexShader", "fragmentShader", 
-            [new ViewportShaderResources(0) ,new CameraShaderResources(1),new ScreenObjectShaderResources(2)]);
+            [new ViewportShaderResources(0) ,new CameraShaderResources(1),new ScreenObjectShaderResources(2), new GizmoCameraShaderResources(3)]);
             out.material = {shader};
         }
         out.mesh = gizmo.mesh;
@@ -214,5 +214,6 @@ export class RenderableObjectManager{
         }            
         ro.name = gizmo.name;
         ro.collider = null; 
+        ro.useSecondaryDepthTexture = true;
     }
 }

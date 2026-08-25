@@ -4,6 +4,7 @@ import type { Mesh } from "../meshes/Mesh";
 import type { Shader } from "../shaders/shader";
 
 export class RenderableObject {
+    useSecondaryDepthTexture: boolean = false;
     mesh: Mesh | null = null;
     material?: Material;
     collider: Collider | null = null; 

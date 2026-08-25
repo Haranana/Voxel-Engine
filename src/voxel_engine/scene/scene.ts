@@ -29,7 +29,7 @@ export class Scene{
     }
 
     sceneGizmosRenderOptions: SceneGizmosRenderOptions = {
-        cameraControllGizmo: false,
+        cameraControllGizmo: true,
         objectMoveGizmo: false,
         objectResizeGizmo: false,
         objectRotateGizmo: false,

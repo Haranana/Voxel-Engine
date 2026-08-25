@@ -317,6 +317,10 @@ export default function EditorPage() {
           resolution,
         },
         timeContext:  null,
+        gizmoCameraContext: {
+          pitch: camera.pitch,
+          yaw: camera.yaw,
+        },
         globalData: null,
       }
 
