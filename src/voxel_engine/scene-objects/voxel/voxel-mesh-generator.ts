@@ -39,7 +39,7 @@ export function generateVoMesh(vo: VoxelObject): Mesh{
             quadUV: new Vector2(0,1), 
             color,
         }
-        meshBuilder.addQuad(leftTop,rightTop,rightBottom,leftBottom)
+        meshBuilder.addQuad({leftTop,rightTop,rightBottom,leftBottom})
     }
 
     const objectStart : Vector3 = new Vector3(-vo.size.x/2 , -vo.size.y/2, -vo.size.z/2) 
@@ -140,7 +140,7 @@ export function generateVoGridMesh(vo: VoxelObject): Mesh{
             quadUV: new Vector2(0,1), 
             color,
         }
-        meshBuilder.addQuad(leftTop,rightTop,rightBottom,leftBottom)
+        meshBuilder.addQuad({leftTop,rightTop,rightBottom,leftBottom})
     }
 
     const objectStart : Vector3 = new Vector3(-vo.size.x/2 , -vo.size.y/2, -vo.size.z/2) 
@@ -221,23 +221,30 @@ export function generateVoBorderGridMesh(vo: VoxelObject): Mesh {
     const color = vo.borderColor;
 
     const addQuad = (A: Vector3,B: Vector3,C: Vector3,D: Vector3) => {
-        meshBuilder.addQuad({
-                position: A,
-                quadUV: new Vector2(0,0),
-                color,
-            },{
-                position: B,
-                quadUV: new Vector2(1,0),
-                color,
-            },{
-                position: C,
-                quadUV: new Vector2(1,1),
-                color,
-            },{
-                position: D,
-                quadUV: new Vector2(0,1),
-                color,
-    })};
+        meshBuilder.addQuad(
+            {
+            leftTop: {
+                    position: A,
+                    quadUV: new Vector2(0,0),
+                    color,
+                },
+            rightTop: {
+                    position: B,
+                    quadUV: new Vector2(1,0),
+                    color,
+                },
+            rightBottom: {
+                    position: C,
+                    quadUV: new Vector2(1,1),
+                    color,
+                },
+            leftBottom: {
+                    position: D,
+                    quadUV: new Vector2(0,1),
+                    color,
+                }
+            }
+            )};
 
     const step = vo.getVoxelSize();
 
@@ -361,25 +368,26 @@ export function generateVoSelectedAreaMesh(vo: VoxelObject, selectedArea: VoxelO
 
         meshBuilder.addQuad(
             {
+                leftTop: {
                 position: leftTopPosition,
                 quadUV: new Vector2(0,0),
                 color,
             },
-            {
+            rightTop:{
                 position: rightTopPosition,
                 quadUV: new Vector2(1,0),
                 color,
             },
-            {
+            rightBottom: {
                 position: rightBottomPosition,
                 quadUV: new Vector2(1,1),
                 color,
             },
-            {
+            leftBottom: {
                 position: leftBottomPosition,
                 quadUV: new Vector2(0,1),
                 color,
-            }
+            }}
         );
     };
 
@@ -520,27 +528,27 @@ export function generateVoBorderOutlineMesh(vo: VoxelObject): Mesh {
         bottomLeft: Vector3,
     ) => {
 
-        meshBuilder.addQuad(
-            {
+        meshBuilder.addQuad({
+            leftTop: {
                 position: topLeft,
                 quadUV: new Vector2(0,0),
                 color: borderColor,
             },
-            {
+            rightTop: {
                 position: topRight,
                 quadUV: new Vector2(1,0),
                 color: borderColor,
             },
-            {
+            rightBottom: {
                 position: bottomRight,
                 quadUV: new Vector2(1,1),
                 color: borderColor,
             },
-            {
+            leftBottom:{
                 position: bottomLeft,
                 quadUV: new Vector2(0,1),
                 color: borderColor,
-            }
+            }}
         );
     };
 

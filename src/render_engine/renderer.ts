@@ -70,7 +70,9 @@ export class Renderer{
     #context: GPUCanvasContext | null = null
     #presentationFormat: GPUTextureFormat | null = null
     #depthTexture: GPUTexture | null = null    
+    #idTexture: GPUTexture | null = null;
     #gizmosDepthTexture: GPUTexture | null = null
+    #textureSize: Vector2 | null = null;
 
 
     initialized: boolean = false;
@@ -109,48 +111,56 @@ export class Renderer{
             alphaMode: 'premultiplied'
         });
         const canvasTexture = this.#context.getCurrentTexture();
+        this.#textureSize = new Vector2(canvasTexture.width, canvasTexture.height);
         this.#depthTexture = this.#device.createTexture({
-            size: [canvasTexture.width, canvasTexture.height],
+            size: this.#textureSize.toArray2(),
             format: 'depth24plus',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         });
         this.#gizmosDepthTexture = this.#device.createTexture({
-            size: [canvasTexture.width, canvasTexture.height],
+            size: this.#textureSize.toArray2(),
             format: 'depth24plus',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         });
+        this.#idTexture = this.#device.createTexture({
+            size: this.#textureSize.toArray2(),
+            format: 'r32float',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
+        })
 
         this.initialized = true;
         this.initializing = false;
         return true
     }
 
-    updateDepthTexture(){
-        if(!this.initialized) false;
+    updateTextures(): boolean{
+        if(!this.initialized) return false;
         const context = this.#context!;
         const device = this.#device!;
 
         const canvasTexture = context.getCurrentTexture();
+        this.#textureSize = new Vector2(canvasTexture.width, canvasTexture.height);
+        this.#depthTexture!.destroy();
+        this.#gizmosDepthTexture!.destroy();
+        this.#idTexture!.destroy();
+
         this.#depthTexture = device.createTexture({
             size: [canvasTexture.width, canvasTexture.height],
             format: 'depth24plus',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         });
-
-    }
-
-    updateSecondaryDepthTexture(){
-        if(!this.initialized) false;
-        const context = this.#context!;
-        const device = this.#device!;
-
-        const canvasTexture = context.getCurrentTexture();
         this.#gizmosDepthTexture = device.createTexture({
             size: [canvasTexture.width, canvasTexture.height],
             format: 'depth24plus',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
-        });
-    }    
+        });                
+        this.#idTexture = device.createTexture({
+            size: [canvasTexture.width, canvasTexture.height],
+            format: 'r32float',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
+        })        
+        return true;
+    }
 
     renderScene(objects: RenderableObject[], renderContext: RenderContext){
         //console.log("[renderScene] called with " + objects.length +" objects")
@@ -169,24 +179,15 @@ export class Renderer{
         this.resizeCanvas();
         const canvasTexture = context.getCurrentTexture();
 
-        if (this.#depthTexture!.width !== canvasTexture.width ||
-            this.#depthTexture!.height !== canvasTexture.height) {
-
-            this.#depthTexture!.destroy();
-            this.updateDepthTexture();
-        };
-        if (this.#gizmosDepthTexture!.width !== canvasTexture.width ||
-            this.#gizmosDepthTexture!.height !== canvasTexture.height) {
-
-            this.#gizmosDepthTexture!.destroy();
-            this.updateSecondaryDepthTexture();
+        if (this.#textureSize!.x !== canvasTexture.width ||
+            this.#textureSize!.y !== canvasTexture.height) {
+            this.updateTextures();
         };
 
         const encoder : GPUCommandEncoder = device.createCommandEncoder({
             label: 'GPU command encoder'
         });
-
-                                
+             
         const pass : GPURenderPassEncoder = encoder.beginRenderPass({
             label: `basic canvas renderPassDescriptor`,
             colorAttachments: [
@@ -335,6 +336,11 @@ export class Renderer{
                     loadOp: 'load',
                     storeOp: 'store',                    
                 },
+                {
+                    view: this.#idTexture!.createView(),
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                }                
             ],
                 depthStencilAttachment: {
                 view: this.#gizmosDepthTexture!.createView(),
@@ -436,20 +442,26 @@ export class Renderer{
                 fragment: {
                     entryPoint: shader.fragmentEntryPoint,
                     module: shaderModule,
-                    targets: [{format: this.#presentationFormat!,
-                        blend: {
-                            color: {
-                                srcFactor: "src-alpha",
-                                dstFactor: "one-minus-src-alpha",
-                                operation: "add",
+                    targets: [
+                        {
+                            format: this.#presentationFormat!,
+                            blend: {
+                                color: {
+                                    srcFactor: "src-alpha",
+                                    dstFactor: "one-minus-src-alpha",
+                                    operation: "add",
+                                },
+                                alpha: {
+                                    srcFactor: "one",
+                                    dstFactor: "one-minus-src-alpha",
+                                    operation: "add",
+                                },
                             },
-                            alpha: {
-                                srcFactor: "one",
-                                dstFactor: "one-minus-src-alpha",
-                                operation: "add",
-                            },
-                },
-                    }],
+                        },
+                        {
+                            format: 'r32float',
+                        }
+                    ],
 
                 },
                 primitive: obj.mesh.primitiveState,
@@ -526,4 +538,45 @@ export class Renderer{
           canvas.height = h;
         }
     };
+
+    async readIdPixel(p: Vector2): Promise<number | undefined>{
+        if(!this.initialized) return undefined;
+
+        const buffer = this.#device!.createBuffer({
+            size: 4,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+
+        const encoder : GPUCommandEncoder = this.#device!.createCommandEncoder({
+            label: 'GPU command encoder'
+        });    
+
+        const x = Math.floor(p.x);
+        const y = Math.floor(p.y);
+
+        encoder.copyTextureToBuffer(
+            {
+                texture: this.#idTexture!,
+                origin: { x, y },
+            },
+            {
+                buffer,
+                bytesPerRow: 256,
+            },
+            {
+                width: 1,
+                height: 1,
+            }        
+        );
+
+        const commandBuffer = encoder.finish();
+        this.#device!.queue.submit([commandBuffer]);    
+        await buffer.mapAsync(GPUMapMode.READ);    
+        const data = new Float32Array(
+            buffer.getMappedRange()
+        );        
+        const id = data[0];
+        buffer.unmap();
+        return id;
+    }
 }

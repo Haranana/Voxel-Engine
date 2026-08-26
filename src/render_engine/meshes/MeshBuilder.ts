@@ -11,14 +11,22 @@ type MeshAttributeName =
     | "color"
     | "normal"
     | "quadUV"
-    | "pickInteractionId"
+    | "pickingInteractionId";
+
+type MeshFaceAttributeName = 
+| "color"
+| "pickingInteractionId";
+
+function isMeshFaceAttribute(value: MeshAttributeName): value is MeshFaceAttributeName {
+    return value === "color" || value === "pickingInteractionId"
+}
 
 const MESH_ATTRIBUTES = {
     position: {format: "float32x3", size: 12},
     color:  { format: "unorm8x4",  size: 4 },
     normal: { format: "float32x3", size: 12 },
     quadUV: { format: "float32x2", size: 8 },
-    pickInteractionId: {format: 'float32', size: 4},
+    pickingInteractionId: {format: 'float32', size: 4},
 } as const;
 
 const ATTRIBUTE_GETTERS = {
@@ -26,7 +34,12 @@ const ATTRIBUTE_GETTERS = {
     color: (v: MeshBuilderVertex) => v.color,
     normal: (v: MeshBuilderVertex) => v.normal,
     quadUV: (v: MeshBuilderVertex) => v.quadUV,
-    pickInteractionId: (v: MeshBuilderVertex) => v.pickInteractionId,
+    pickingInteractionId: (v: MeshBuilderVertex) => v.pickingInteractionId,
+} as const;
+
+const FACE_ATTRIBUTE_GETTERS = {
+    color: (f: MeshBuilderFaceAttributes) => f.color,
+    pickingInteractionId: (f: MeshBuilderFaceAttributes) => f.pickingInteractionId,
 } as const;
 
 export type MeshBuilderVertex = {
@@ -34,7 +47,44 @@ export type MeshBuilderVertex = {
     color?: Vector4,
     normal?: Vector3,
     quadUV?: Vector2
-    pickInteractionId?: number
+    pickingInteractionId?: number
+}
+
+export type MeshBuilderQuad = {
+    leftTop: MeshBuilderVertex, 
+    rightTop: MeshBuilderVertex, 
+    rightBottom: MeshBuilderVertex, 
+    leftBottom: MeshBuilderVertex
+}
+
+export type MeshBuilderBox = {
+    positions: MeshBuilderBoxPositions,
+    faces: MeshBuilderBoxFaces,
+}
+
+export type MeshBuilderBoxPositions = {
+    leftTopFront: Vector3, 
+    rightTopFront: Vector3, 
+    rightBottomFront: Vector3, 
+    leftBottomFront: Vector3,
+    leftTopBack: Vector3, 
+    rightTopBack: Vector3, 
+    rightBottomBack: Vector3, 
+    leftBottomBack: Vector3    
+}
+
+export type MeshBuilderBoxFaces = {
+    left: MeshBuilderFaceAttributes,
+    right: MeshBuilderFaceAttributes,
+    top: MeshBuilderFaceAttributes,
+    bottom: MeshBuilderFaceAttributes,
+    back: MeshBuilderFaceAttributes,
+    front: MeshBuilderFaceAttributes,
+}
+
+export type MeshBuilderFaceAttributes = {
+    color?: Vector4,
+    pickingInteractionId?: number
 }
 
 /*
@@ -117,50 +167,127 @@ export class MeshBuilder{
         return out;
     }
 
+    #doesFaceFitLayout(face: MeshBuilderFaceAttributes): boolean {
+        for (const attrName of this.meshBuilderLayout.attributes) {
+            if (!isMeshFaceAttribute(attrName)) {
+                continue;
+            }
+            if (FACE_ATTRIBUTE_GETTERS[attrName](face) === undefined) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /*
         Returns box created by eight points specified by user
         if vertex layout contains quadUV, it will be assigned automatically by the functioin
         user do not have to specify any quadUV in the points 
     */
-    addBox(leftTopFront: MeshBuilderVertex, rightTopFront: MeshBuilderVertex, rightBottomFront: MeshBuilderVertex, leftBottomFront: MeshBuilderVertex,
-        leftTopBack: MeshBuilderVertex, rightTopBack: MeshBuilderVertex, rightBottomBack: MeshBuilderVertex, leftBottomBack: MeshBuilderVertex
-    ){
-        if(!this.#doesVertexFitLayout(leftTopFront, ['quadUV']) || 
-        !this.#doesVertexFitLayout(rightTopFront, ['quadUV']) || 
-        !this.#doesVertexFitLayout(rightBottomFront, ['quadUV']) || 
-        !this.#doesVertexFitLayout(leftBottomFront, ['quadUV']) || 
-        !this.#doesVertexFitLayout(leftTopBack, ['quadUV']) ||
-        !this.#doesVertexFitLayout(rightTopBack, ['quadUV']) || 
-        !this.#doesVertexFitLayout(rightBottomBack, ['quadUV']) || 
-        !this.#doesVertexFitLayout(leftBottomBack, ['quadUV'])){
-            throw Error(`Box Vertices are not consistent with declared layout`)
+    addBox(box: MeshBuilderBox){
+        const faces = box.faces;
+        const leftTopFront = box.positions.leftTopFront;
+        const rightTopFront = box.positions.rightTopFront;
+        const rightBottomFront = box.positions.rightBottomFront;
+        const leftBottomFront = box.positions.leftBottomFront;
+        const leftTopBack = box.positions.leftTopBack;
+        const rightTopBack = box.positions.rightTopBack;
+        const rightBottomBack = box.positions.rightBottomBack;
+        const leftBottomBack = box.positions.leftBottomBack;
+
+        if(!this.#doesFaceFitLayout(box.faces.back) || 
+        !this.#doesFaceFitLayout(box.faces.front) || 
+        !this.#doesFaceFitLayout(box.faces.left) ||  
+        !this.#doesFaceFitLayout(box.faces.right) || 
+        !this.#doesFaceFitLayout(box.faces.top) || 
+        !this.#doesFaceFitLayout(box.faces.bottom)){
+            throw Error(`Box faces are not consistent with declared layout`)
+        }
+
+        const buildMeshBuilderVertex = (position: Vector3, faceAttr: MeshBuilderFaceAttributes) => {
+            const vertex: MeshBuilderVertex = {
+                position,
+            };
+
+            if (faceAttr.color !== undefined) {
+                vertex.color = faceAttr.color;
+            }
+
+            if (faceAttr.pickingInteractionId !== undefined) {
+                vertex.pickingInteractionId = faceAttr.pickingInteractionId;
+            }
+
+            return vertex;
         }
 
         //front 
-        this.addQuad(leftTopFront, rightTopFront, rightBottomFront, leftBottomFront);
+        const frontFace : MeshBuilderQuad ={
+            leftTop: buildMeshBuilderVertex(leftTopFront , faces.front),
+            rightTop: buildMeshBuilderVertex(rightTopFront , faces.front),
+            rightBottom: buildMeshBuilderVertex(rightBottomFront, faces.front),
+            leftBottom: buildMeshBuilderVertex(leftBottomFront, faces.front),
+        } 
+        this.addQuad(frontFace);
         
         //back 
-        this.addQuad(rightTopBack, leftTopBack, leftBottomBack, rightBottomBack); //potencjalnie nieprawidlowe? zweryfikowac 
+        //potencjalnie nieprawidlowe? zweryfikowac 
+        const backFace : MeshBuilderQuad ={
+            leftTop: buildMeshBuilderVertex(rightTopBack , faces.back),
+            rightTop: buildMeshBuilderVertex(leftTopBack , faces.back),
+            rightBottom: buildMeshBuilderVertex(leftBottomBack, faces.back),
+            leftBottom: buildMeshBuilderVertex(rightBottomBack, faces.back),
+        }      
+        this.addQuad(backFace);   
         
         //top 
-        this.addQuad(leftTopBack, rightTopBack, rightTopFront, leftTopFront);
+        const topFace : MeshBuilderQuad ={
+            leftTop: buildMeshBuilderVertex(leftTopBack , faces.top),
+            rightTop: buildMeshBuilderVertex(rightTopBack , faces.top),
+            rightBottom: buildMeshBuilderVertex(rightTopFront, faces.top),
+            leftBottom: buildMeshBuilderVertex(leftTopFront, faces.top),
+        }      
+        this.addQuad(topFace);      
         
         //bottom 
-        this.addQuad(leftBottomFront, rightBottomFront, rightBottomBack, leftBottomBack);
+        const bottomFace : MeshBuilderQuad ={
+            leftTop: buildMeshBuilderVertex(leftBottomFront , faces.bottom),
+            rightTop: buildMeshBuilderVertex(rightBottomFront , faces.bottom),
+            rightBottom: buildMeshBuilderVertex(rightBottomBack, faces.bottom),
+            leftBottom: buildMeshBuilderVertex(leftBottomBack, faces.bottom),
+        }              
+        this.addQuad(bottomFace);
         
         //left 
-        this.addQuad(leftTopBack, leftTopFront, leftBottomFront, leftBottomBack);
+        const leftFace : MeshBuilderQuad ={
+            leftTop: buildMeshBuilderVertex(leftTopBack , faces.left),
+            rightTop: buildMeshBuilderVertex(leftTopFront , faces.left),
+            rightBottom: buildMeshBuilderVertex(leftBottomFront, faces.left),
+            leftBottom: buildMeshBuilderVertex(leftBottomBack, faces.left),
+        }              
+        this.addQuad(leftFace);        
 
         //right 
-        this.addQuad(rightTopFront, rightTopBack, rightBottomBack, rightBottomFront);
+        const rightFace : MeshBuilderQuad ={
+            leftTop: buildMeshBuilderVertex(rightTopFront , faces.right),
+            rightTop: buildMeshBuilderVertex(rightTopBack , faces.right),
+            rightBottom: buildMeshBuilderVertex(rightBottomBack, faces.right),
+            leftBottom: buildMeshBuilderVertex(rightBottomFront, faces.right),
+        }              
+        this.addQuad(rightFace);          
     }
 
     /*
         Returns quad created by 4 points specified by user
-        if vertex layout contains quadUV, it will be assigned automatically by the functioin
-        user do not have to specify any quadUV in the points 
+        if vertex layout contains quadUV or normal, it will be assigned automatically by the function        
+        user do not have to assign any value to quadUV or normal in the points         
     */    
-    addQuad(topLeft: MeshBuilderVertex, topRight: MeshBuilderVertex, bottomRight: MeshBuilderVertex, bottomLeft: MeshBuilderVertex ){
+    addQuad(quad: MeshBuilderQuad){
+        const topLeft: MeshBuilderVertex = {...quad.leftTop};
+        const topRight: MeshBuilderVertex = {...quad.rightTop};
+        const bottomRight: MeshBuilderVertex = {...quad.rightBottom};
+        const bottomLeft: MeshBuilderVertex = {...quad.leftBottom};
+
         if(!this.#doesVertexFitLayout(topLeft, ['quadUV']) || 
         !this.#doesVertexFitLayout(topRight, ['quadUV']) || 
         !this.#doesVertexFitLayout(bottomRight, ['quadUV']) || 
@@ -168,25 +295,21 @@ export class MeshBuilder{
             throw Error(`Vertices fields are not consistent with declared layout`)
         }
 
-        const topLeftCopy = {...topLeft};
-        const topRightCopy = {...topRight};
-        const bottomRightCopy = {...bottomRight};
-        const bottomLeftCopy = {...bottomLeft};
-        
-
         //adding quadUV if this attribute is required by layout
         if(this.meshBuilderLayout.attributes.find(attrName=>attrName==='quadUV')){
-            topLeftCopy.quadUV = new Vector2(0,0);
-            topRightCopy.quadUV = new Vector2(0,1);
-            bottomRightCopy.quadUV = new Vector2(1,1);
-            bottomLeftCopy.quadUV = new Vector2(1,0);
+            topLeft.quadUV = new Vector2(0,0);
+            topRight.quadUV = new Vector2(0,1);
+            bottomRight.quadUV = new Vector2(1,1);
+            bottomLeft.quadUV = new Vector2(1,0);
         }
 
+        //todo insert normals to vertices here
+
         const currentVertexIndex : number = this.vertices.length; 
-        this.vertices.push(topLeftCopy);
-        this.vertices.push(topRightCopy)
-        this.vertices.push(bottomRightCopy)
-        this.vertices.push(bottomLeftCopy)
+        this.vertices.push(topLeft);
+        this.vertices.push(topRight)
+        this.vertices.push(bottomRight)
+        this.vertices.push(bottomLeft)
         if(this.meshBuilderLayout.topology == "line-list"){
             this.indices.push(currentVertexIndex, currentVertexIndex+1, currentVertexIndex+1, currentVertexIndex+2, currentVertexIndex+2, currentVertexIndex+3, currentVertexIndex+3, currentVertexIndex);
         }else if(this.meshBuilderLayout.topology == "triangle-list"){

@@ -13,6 +13,7 @@ import { getBasicSampleVoxelObject } from "../../voxel_engine/scene-objects/voxe
 import { getSampleCamera } from "../../voxel_engine/scene-objects/camera/sample-cameras";
 import { VoxelEngineEvent } from "../../voxel_engine/events/event";
 import { Vectors } from "../../math/vectors";
+import { pickingInteractions, type PickingInteraction } from "../../voxel_engine/picking/picking-interactions";
 
 
 type SelectSession = {
@@ -66,14 +67,16 @@ export class EditorController{
     editMode: EditMode  = "Add";
     scene: Scene | null = null;
     renderScene: (()=>void) | null = null;
+    readIdTexture: ((p: Vector2)=>Promise<(number|undefined)>) | null = null;
     initialized: boolean = false;
 
     constructor(){}
 
-    init(scene: Scene, renderScene: ()=>void){
+    init(scene: Scene, renderScene: ()=>void, readIdTexture: ((p: Vector2)=>Promise<(number|undefined)>) ){
         this.renderScene = renderScene;
         this.#startCameraMoveAnimationLoop();
         this.scene = scene;
+        this.readIdTexture = readIdTexture;
 
         this.initialized = true;
     }
@@ -711,20 +714,46 @@ export class EditorController{
         }
     }
 
-    handleCanvasPointerDown(pointerPos: Vector2, canvasSize: Vector2){
+    async handleCanvasPickingInteraction(pickingInteraction: PickingInteraction){
+        if(pickingInteraction==='CameraGizmoPosX'){
+            this.centerCameraAtPositiveX();
+        }else if(pickingInteraction==='CameraGizmoNegX'){
+            this.centerCameraAtNegativeX();
+        }else if(pickingInteraction==='CameraGizmoPosY'){
+            this.centerCameraAtPositiveY();
+        }else if(pickingInteraction==='CameraGizmoNegY'){
+            this.centerCameraAtNegativeY();
+        }else if(pickingInteraction==='CameraGizmoPosZ'){
+            this.centerCameraAtPositiveZ();
+        }else if(pickingInteraction==='CameraGizmoNegZ'){
+            this.centerCameraAtNegativeZ();
+        }
+    }
+
+    async handleCanvasPointerDown(pointerPos: Vector2, canvasSize: Vector2){
         if(!this.initialized || !this.scene) return;
 
         const scene = this.scene;
         const voxelObject = scene.getActiveVoxelObject();
         const camera = scene.getActiveCamera();
         if(!voxelObject || !camera) return;        
-
+        
+        const pickingInteractionId = await this.readIdTexture!(pointerPos);
+        if(pickingInteractionId){
+            const pickingInteraction = pickingInteractions.get(pickingInteractionId);
+            if(pickingInteraction){
+                this.handleCanvasPickingInteraction(pickingInteraction);
+            }
+            return;
+        }
+        
         const lastEmpty = this.editMode === "Add";
         const hitOnExit = true;
         
         const mvp = camera.getProjectionMatrix(canvasSize).multMatrix(Matrices4.transform(voxelObject.getObjectRo().worldTransform!)).multMatrix(camera.getCameraView());
         
         const rayCastResults = getFirstVoxelOnRay(camera, pointerPos, voxelObject, canvasSize, Matrices4.transform(voxelObject.getObjectRo().worldTransform!), camera.getProjectionMatrix(canvasSize), camera.getCameraView(), lastEmpty , hitOnExit);
+        
         if(!rayCastResults) return;
         const hitVoxel : Vector3 = rayCastResults.voxelCoords;
 
@@ -732,6 +761,7 @@ export class EditorController{
         let selectedAreaChanged = false;        
         const selectType : "dynamic" | "static" = this.editMode === "Select"? "static" : "dynamic";
 
+        
         if(selectType === "static"){
             selectedAreaChanged = voxelObject.resetSelect("static")!=0;
             if(this.selectMode == "Voxel"){
@@ -787,7 +817,7 @@ export class EditorController{
         }
     }
 
-    handleCanvasPointerMove(pointerPos: Vector2, canvasSize: Vector2){
+    async handleCanvasPointerMove(pointerPos: Vector2, canvasSize: Vector2){
         if(!this.initialized || !this.scene) return;
 
         const scene = this.scene;
@@ -891,7 +921,7 @@ export class EditorController{
         }
     }
 
-    handleCanvasPointerUp(pointerPos: Vector2, canvasSize: Vector2){
+    async handleCanvasPointerUp(pointerPos: Vector2, canvasSize: Vector2){
         if(!this.initialized) return;
         const scene = this.scene!;
         const voxelObject = scene.getActiveVoxelObject();

@@ -257,12 +257,19 @@ export function screenObjectShader(){
         @location(0) position: vec3f,
         @location(1) color: vec4f,
         @location(2) quadUV: vec2f,
+        @location(3) pickingInteractionId: f32,
     };
 
     struct VertexShaderOutput{
         @builtin(position) position: vec4f,
         @location(0) color: vec4f,
         @location(1) quadUV: vec2f,
+        @location(2) @interpolate(flat) pickingInteractionId: f32,
+    };
+
+    struct FragmentShaderOutput{
+        @location(0) color: vec4f,
+        @location(1) id: f32,
     };
 
     ${fequalFunctionCode}
@@ -279,17 +286,19 @@ export function screenObjectShader(){
         let worldPosition = transform * modelPosition; 
         let clipPosition = (gizmoCameraBuffer.projectionMatrix * gizmoCameraBuffer.viewMatrix * worldPosition).xyzw;
         
-        
         out.position = vec4f(clipPosition.x + anchorNdc.x * clipPosition.w , clipPosition.y + anchorNdc.y * clipPosition.w , clipPosition.z, clipPosition.w);
-
         out.quadUV = v.quadUV;
         out.color = v.color;
+        out.pickingInteractionId = v.pickingInteractionId;
 
         return out;
     }
 
-    @fragment fn fragmentShader(v: VertexShaderOutput) -> @location(0) vec4f {
-        return v.color;
+    @fragment fn fragmentShader(v: VertexShaderOutput) -> FragmentShaderOutput {
+        return FragmentShaderOutput(
+            v.color,
+            v.pickingInteractionId,
+        );
     }
     `
 }

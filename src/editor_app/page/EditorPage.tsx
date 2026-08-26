@@ -63,7 +63,7 @@ export default function EditorPage() {
   useEffect(()=>{
     if(!sceneRef.current.getActiveCamera()) return;
     
-    controller.init(sceneRef.current, rerenderScene);
+    controller.init(sceneRef.current, rerenderScene, (p: Vector2)=>rendererRef.current.readIdPixel(p));
     controller.onCameraModified = onCameraUpdated;
   },[]);
   
