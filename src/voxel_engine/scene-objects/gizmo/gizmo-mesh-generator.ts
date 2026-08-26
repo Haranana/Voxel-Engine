@@ -9,7 +9,7 @@ import { MeshBuilder, type MeshBuilderVertex } from "../../../render_engine/mesh
 export function generateCameraControllsGizmoMesh(): Mesh{
 const builder = new MeshBuilder({
     topology: "triangle-list",
-    attributes: ["color", "quadUV"],
+    attributes: ["position","color", "quadUV"],
     frontFace: "cw",
     cullMode: "none",
 }, {
@@ -91,6 +91,7 @@ export function generateResizeGizmoMesh(): Mesh{
         const meshBuilder: MeshBuilder = new MeshBuilder({
             topology: "triangle-list",
             attributes:[
+                "position",
                 "color",
                 "quadUV",
             ]
@@ -103,6 +104,7 @@ export function generateRotateGizmoMesh(): Mesh{
         const meshBuilder: MeshBuilder = new MeshBuilder({
             topology: "triangle-list",
             attributes:[
+                "position",
                 "color",
                 "quadUV",
             ]
@@ -115,6 +117,7 @@ export function generateMoveGizmoMesh(): Mesh{
         const meshBuilder: MeshBuilder = new MeshBuilder({
             topology: "triangle-list",
             attributes:[
+                "position",
                 "color",
                 "quadUV",
             ]

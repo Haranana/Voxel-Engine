@@ -1,28 +1,51 @@
-import type { Vector2 } from "../../math/vector2.type"
+import { Vector2 } from "../../math/vector2.type"
 import type { Vector3 } from "../../math/vector3.type"
 import type { Vector4 } from "../../math/vector4.type"
 import type { Mesh, VertexLayout } from "./Mesh"
 
-
-// By default frontFace = "cw" and cullmode = "back" 
-export type MeshBuilderVertexLayout = {
-    topology: "line-list" | "triangle-list" //only supported topologies are line-list and triangle-list
-    attributes: MeshAttribute[]
-    frontFace?: "cw" | "ccw"
-    cullMode?: "front" | "back" | "none"
-}
-
-//refers to optional fields that should be expected from any vertex that is used by the MeshBuilder
-export type MeshAttribute =
+/*
+    refers to optional fields that should be expected from any vertex that is used by the MeshBuilder
+*/
+type MeshAttributeName =
+    | "position"
     | "color"
     | "normal"
     | "quadUV"
+    | "pickInteractionId"
+
+const MESH_ATTRIBUTES = {
+    position: {format: "float32x3", size: 12},
+    color:  { format: "unorm8x4",  size: 4 },
+    normal: { format: "float32x3", size: 12 },
+    quadUV: { format: "float32x2", size: 8 },
+    pickInteractionId: {format: 'float32', size: 4},
+} as const;
+
+const ATTRIBUTE_GETTERS = {
+    position: (v: MeshBuilderVertex) => v.position,
+    color: (v: MeshBuilderVertex) => v.color,
+    normal: (v: MeshBuilderVertex) => v.normal,
+    quadUV: (v: MeshBuilderVertex) => v.quadUV,
+    pickInteractionId: (v: MeshBuilderVertex) => v.pickInteractionId,
+} as const;
 
 export type MeshBuilderVertex = {
     position: Vector3,
     color?: Vector4,
     normal?: Vector3,
     quadUV?: Vector2
+    pickInteractionId?: number
+}
+
+/*
+    By default frontFace = "cw" and cullmode = "back" 
+    Only supported topologies are line-list and triangle-list
+*/
+export type MeshBuilderVertexLayout = {
+    topology: "line-list" | "triangle-list" 
+    attributes: MeshAttributeName[]
+    frontFace?: "cw" | "ccw"
+    cullMode?: "front" | "back" | "none"
 }
 
 export class MeshBuilder{
@@ -41,7 +64,7 @@ export class MeshBuilder{
         this.topology = this.meshBuilderLayout.topology;
         this.gpuLayout = this.#getGpuVertexLayout(layout);
         this.primitiveState = this.#getPrimitiveState(layout);
-        this.depthStencilState = !depthStencilState? this.#getDepthStencilState() : depthStencilState;
+        this.depthStencilState = !depthStencilState? this.#getDefaultDepthStencilState() : depthStencilState;
     }
 
     #getPrimitiveState(layout: MeshBuilderVertexLayout): GPUPrimitiveState{
@@ -54,7 +77,7 @@ export class MeshBuilder{
         }
     }
 
-    #getDepthStencilState(): GPUDepthStencilState{
+    #getDefaultDepthStencilState(): GPUDepthStencilState{
         return{
             depthWriteEnabled: true,
             depthCompare: 'less',
@@ -66,78 +89,50 @@ export class MeshBuilder{
         const attributes: GPUVertexAttribute[] = [];
         let location = 0;
         let offset = 0;
-        let stride = 0;
-
-        //vertex position attributes are independant of topology
-        attributes.push({
-            shaderLocation: location++,
-            offset,
-            format: `float32x3`,
+        layout.attributes.forEach(attrName=>{
+            const attr = MESH_ATTRIBUTES[attrName]
+            attributes.push({
+                shaderLocation: location++,
+                offset,
+                format: attr.format,
+            })
+            offset+=attr.size
+            
         })
-        offset+=12
-        stride+=4*3;
-
-        layout.attributes.forEach(v=>{
-            if(v === "color"){
-                attributes.push({
-                    shaderLocation: location++,
-                    offset,
-                    format: 'unorm8x4',
-                })
-                offset+=4
-                stride+=4*1;
-            }else if(v === "normal"){
-                attributes.push({
-                    shaderLocation: location++,
-                    offset,
-                    format: `float32x3`,
-                })
-                offset+=12
-                stride+=4*3;
-            }else if(v ==="quadUV"){
-                attributes.push({
-                    shaderLocation: location++,
-                    offset,
-                    format: `float32x2`,
-                })
-                offset+=8
-                stride+=4*2;
-            }
-        })
-
         const out: VertexLayout = {
-            stride,
+            stride: offset,
             attributes,
         }; 
 
         return out;
     }
 
-    #doesVertexFitLayout(v: MeshBuilderVertex): boolean{
+    #doesVertexFitLayout(v: MeshBuilderVertex, excludedAttributes: MeshAttributeName[] = []): boolean{
         let out: boolean = true; 
-        this.meshBuilderLayout.attributes.forEach(attr=>{
-            if(attr === "color"){
-               if(v.color==null) out = false;
-            }else if(attr === "normal"){
-                if(v.normal==null) out = false;
-            }else if(attr ==="quadUV"){
-                if(v.quadUV==null) out = false;
+        this.meshBuilderLayout.attributes.forEach(attrName=>{
+            if(!excludedAttributes.find(exAttrName=>exAttrName===attrName) && !ATTRIBUTE_GETTERS[attrName](v)){
+                out = false;
             }
         })
         return out;
     }
-    
+
+    /*
+        Returns box created by eight points specified by user
+        if vertex layout contains quadUV, it will be assigned automatically by the functioin
+        user do not have to specify any quadUV in the points 
+    */
     addBox(leftTopFront: MeshBuilderVertex, rightTopFront: MeshBuilderVertex, rightBottomFront: MeshBuilderVertex, leftBottomFront: MeshBuilderVertex,
         leftTopBack: MeshBuilderVertex, rightTopBack: MeshBuilderVertex, rightBottomBack: MeshBuilderVertex, leftBottomBack: MeshBuilderVertex
     ){
-        if(!this.#doesVertexFitLayout(leftTopFront) || //a
-        !this.#doesVertexFitLayout(rightTopFront) || //b
-        !this.#doesVertexFitLayout(rightBottomFront) || //c
-        !this.#doesVertexFitLayout(leftBottomFront) || //d
-        !this.#doesVertexFitLayout(leftTopBack) ||//e
-        !this.#doesVertexFitLayout(rightTopBack) || //f
-        !this.#doesVertexFitLayout(rightBottomBack) || //g
-        !this.#doesVertexFitLayout(leftBottomBack)){//h
+        if(!this.#doesVertexFitLayout(leftTopFront, ['quadUV']) || 
+        !this.#doesVertexFitLayout(rightTopFront, ['quadUV']) || 
+        !this.#doesVertexFitLayout(rightBottomFront, ['quadUV']) || 
+        !this.#doesVertexFitLayout(leftBottomFront, ['quadUV']) || 
+        !this.#doesVertexFitLayout(leftTopBack, ['quadUV']) ||
+        !this.#doesVertexFitLayout(rightTopBack, ['quadUV']) || 
+        !this.#doesVertexFitLayout(rightBottomBack, ['quadUV']) || 
+        !this.#doesVertexFitLayout(leftBottomBack, ['quadUV'])){
             throw Error(`Box Vertices are not consistent with declared layout`)
         }
 
@@ -160,19 +155,38 @@ export class MeshBuilder{
         this.addQuad(rightTopFront, rightTopBack, rightBottomBack, rightBottomFront);
     }
 
+    /*
+        Returns quad created by 4 points specified by user
+        if vertex layout contains quadUV, it will be assigned automatically by the functioin
+        user do not have to specify any quadUV in the points 
+    */    
     addQuad(topLeft: MeshBuilderVertex, topRight: MeshBuilderVertex, bottomRight: MeshBuilderVertex, bottomLeft: MeshBuilderVertex ){
-        if(!this.#doesVertexFitLayout(topLeft) || 
-        !this.#doesVertexFitLayout(topRight) || 
-        !this.#doesVertexFitLayout(bottomRight) || 
-        !this.#doesVertexFitLayout(bottomLeft)){
+        if(!this.#doesVertexFitLayout(topLeft, ['quadUV']) || 
+        !this.#doesVertexFitLayout(topRight, ['quadUV']) || 
+        !this.#doesVertexFitLayout(bottomRight, ['quadUV']) || 
+        !this.#doesVertexFitLayout(bottomLeft, ['quadUV'])){
             throw Error(`Vertices fields are not consistent with declared layout`)
         }
 
+        const topLeftCopy = {...topLeft};
+        const topRightCopy = {...topRight};
+        const bottomRightCopy = {...bottomRight};
+        const bottomLeftCopy = {...bottomLeft};
+        
+
+        //adding quadUV if this attribute is required by layout
+        if(this.meshBuilderLayout.attributes.find(attrName=>attrName==='quadUV')){
+            topLeftCopy.quadUV = new Vector2(0,0);
+            topRightCopy.quadUV = new Vector2(0,1);
+            bottomRightCopy.quadUV = new Vector2(1,1);
+            bottomLeftCopy.quadUV = new Vector2(1,0);
+        }
+
         const currentVertexIndex : number = this.vertices.length; 
-        this.vertices.push(topLeft);
-        this.vertices.push(topRight)
-        this.vertices.push(bottomRight)
-        this.vertices.push(bottomLeft)
+        this.vertices.push(topLeftCopy);
+        this.vertices.push(topRightCopy)
+        this.vertices.push(bottomRightCopy)
+        this.vertices.push(bottomLeftCopy)
         if(this.meshBuilderLayout.topology == "line-list"){
             this.indices.push(currentVertexIndex, currentVertexIndex+1, currentVertexIndex+1, currentVertexIndex+2, currentVertexIndex+2, currentVertexIndex+3, currentVertexIndex+3, currentVertexIndex);
         }else if(this.meshBuilderLayout.topology == "triangle-list"){
@@ -189,45 +203,43 @@ export class MeshBuilder{
             throw Error(`Vertices fields are not consistent with declared layout`);
         }
         const currentVertexIndex : number = this.vertices.length; 
-        this.vertices.push(first);
-        this.vertices.push(second);
+        this.vertices.push({...first});
+        this.vertices.push({...second});
         
         this.indices.push(currentVertexIndex, currentVertexIndex+1);
     }
     
+    /*
+        warning, this method doesn't have support for all gpu data formats, if new attributes are added
+        I should make sure that their formats are accounted for here
+    */
     build(): Mesh{
         const floatsPerVertex = this.gpuLayout.stride/4;
         const numVertices : number = this.vertices.length;
         const verticesArray = new Float32Array(numVertices * floatsPerVertex); 
+        const uintArray = new Uint8Array(verticesArray.buffer); //used for colors!
 
-        const colors : boolean = this.meshBuilderLayout.attributes.find((attr)=>attr === "color")!=undefined;
-        const colorData = new Uint8Array(verticesArray.buffer);
-
-        const normal : boolean = this.meshBuilderLayout.attributes.find((attr)=>attr === "normal")!=undefined;
-
-        const quadUV : boolean = this.meshBuilderLayout.attributes.find((attr)=>attr === "quadUV")!=undefined;
-
-        
-        
-        for(let i = 0; i<numVertices; i++){
+        for(let i=0; i<numVertices; i++){
             let currentByteOffset = 0;
-
-            verticesArray.set([this.vertices[i].position.x , this.vertices[i].position.y, this.vertices[i].position.z]  , i*floatsPerVertex + currentByteOffset);
-            currentByteOffset+=3;
-
-            if(colors){
-                colorData.set([this.vertices[i].color!.x , this.vertices[i].color!.y , this.vertices[i].color!.z ,this.vertices[i].color!.w],i*floatsPerVertex*4 + 4*currentByteOffset );
-                currentByteOffset+=1;
-            }
-            if(normal){
-                verticesArray.set([this.vertices[i].normal!.x , this.vertices[i].normal!.y, this.vertices[i].normal!.z], i * floatsPerVertex + currentByteOffset);
-                currentByteOffset+=3;
-            }     
-            if(quadUV){
-                verticesArray.set([this.vertices[i].quadUV!.x , this.vertices[i].quadUV!.y], i * floatsPerVertex + currentByteOffset);
-                currentByteOffset+=2;
-            }
-
+            this.meshBuilderLayout.attributes.forEach((attrName)=>{
+                const attr = MESH_ATTRIBUTES[attrName];                
+                const floatsInAttr = attr.size/4;
+                const format = attr.format;
+                if(format==='unorm8x4'){
+                    const attrValue = ATTRIBUTE_GETTERS[attrName](this.vertices[i]) as Vector4
+                    uintArray.set([attrValue.x, attrValue.y, attrValue.z, attrValue.w], i*floatsPerVertex*4 + 4*currentByteOffset)                    
+                }else if(format==='float32x3'){
+                    const attrValue = ATTRIBUTE_GETTERS[attrName](this.vertices[i]) as Vector3
+                    verticesArray.set([attrValue.x, attrValue.y, attrValue.z], i*floatsPerVertex + currentByteOffset)
+                }else if(format==='float32x2'){
+                    const attrValue = ATTRIBUTE_GETTERS[attrName](this.vertices[i]) as Vector2
+                    verticesArray.set([attrValue.x, attrValue.y], i*floatsPerVertex + currentByteOffset)
+                }else if(format==='float32'){
+                    const attrValue = ATTRIBUTE_GETTERS[attrName](this.vertices[i]) as number
+                    verticesArray.set([attrValue], i*floatsPerVertex + currentByteOffset)
+                }
+                currentByteOffset+=floatsInAttr;
+            })
         }
 
         const indicesArray = new Uint32Array(this.indices);

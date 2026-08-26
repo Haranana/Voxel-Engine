@@ -12,6 +12,7 @@ export function generateVoMesh(vo: VoxelObject): Mesh{
     const meshBuilder: MeshBuilder = new MeshBuilder({
         topology: "triangle-list",
         attributes:[
+            "position",
             "color",
             "quadUV",
         ]
@@ -107,6 +108,7 @@ export function generateVoGridMesh(vo: VoxelObject): Mesh{
     const meshBuilder: MeshBuilder = new MeshBuilder({
         topology: "triangle-list",
         attributes:[
+            "position",
             "color",
             "quadUV",
         ]
@@ -204,6 +206,7 @@ export function generateVoBorderGridMesh(vo: VoxelObject): Mesh {
     const meshBuilder: MeshBuilder = new MeshBuilder({
         topology: "triangle-list",
         attributes:[
+            "position",
             "color",
             "quadUV",
         ],
@@ -338,6 +341,7 @@ export function generateVoSelectedAreaMesh(vo: VoxelObject, selectedArea: VoxelO
     const meshBuilder = new MeshBuilder({
         topology: "triangle-list",
         attributes: [
+            "position",
             "color",
             "quadUV",
         ]
@@ -494,6 +498,7 @@ export function generateVoBorderOutlineMesh(vo: VoxelObject): Mesh {
     const meshBuilder: MeshBuilder = new MeshBuilder({
         topology: "triangle-list",
         attributes:[
+            "position",
             "color",
             "quadUV",
         ],

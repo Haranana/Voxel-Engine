@@ -162,7 +162,8 @@ export class Renderer{
         });
         renderContext.device = device;
         renderContext.queue = device.queue;
-         
+
+
         const context = this.#context!;
         //const canvas = this.#canvas!
         this.resizeCanvas();
