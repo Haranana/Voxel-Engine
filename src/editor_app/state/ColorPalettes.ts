@@ -1,5 +1,3 @@
-import { create} from "zustand";
-import { persist } from "zustand/middleware";
 import type { RGBColor } from "react-color";
 import { Vector4 } from "../../math/vector4.type";
 import { Vector3 } from "../../math/vector3.type";
@@ -107,6 +105,14 @@ export function rgbToVector4(c: ColorRGB, a: number = 255): Vector4{
     return new Vector4(c.R, c.G, c.B, a);
 }
 
+export function vector4ToRgb(v: Vector4): ColorRGB{
+    return{
+        R: v.x,
+        G: v.y,
+        B: v.z
+    };
+}
+
 export function rgbToVector3(c: ColorRGB): Vector3{
     return new Vector3(c.R, c.G, c.B);
 }
@@ -127,91 +133,43 @@ export function reactColorTypeToRgb(c: RGBColor): ColorRGB{
     };
 }
 
-export type ColorPalette = ColorRGB[];
 
-export class ColorPalettes{    
+
+export class ColorPalette{
+
+    // Maximum amount of cells that 
+    // 512 was picked arbitrary, but some limit is necessary nonetheless
     readonly maxPaletteSize = 512;
+    // Actual amount of cells in this palette
     paletteSize = 60;
-    #palette : ColorPalette = this.#loadPalettes(); 
-    paletteChangedEvent: VoxelEngineEvent<void> = new VoxelEngineEvent();
+    #palette : ColorRGB[] = this.#loadPalette(); 
 
+    paletteChangedEvent: VoxelEngineEvent<void> = new VoxelEngineEvent();
     #notifyOnPaletteChanged(){
         this.paletteChangedEvent.emit();
     }
 
-    #loadPalettes(): ColorPalette{
-    const json : string | null = localStorage.getItem("customPalette");
+    // Loads palette from local storage 
+    // if any exception during loading is found the default palette is loaded instead
+    #loadPalette(): ColorRGB[]{
+        const json : string | null = localStorage.getItem("customPalette");
         if(!json){
-            return this.#getDefaultPalette();
+            return this.#generateDefaultPalette();
         }
         try {
-            return JSON.parse(json) as ColorPalette;
+            return JSON.parse(json) as ColorRGB[];
         }
         catch {
-            return this.#getDefaultPalette();
+            return this.#generateDefaultPalette();
         }
     }
 
     loadDefaultPalette(){
-        this.#palette = this.#getDefaultPalette();
+        this.#palette = this.#generateDefaultPalette();
         this.#notifyOnPaletteChanged();
     }
 
-    async getPaletteBlob(): Promise<Blob>{
-        const paletteToArray = (p: ColorPalette): Uint8ClampedArray<ArrayBuffer> => {
-            const out = new Uint8ClampedArray(p.length * 4);
-            let offset = 0;
-            p.forEach(c=>{
-                out[offset] = c.R;
-                out[offset+1] = c.G;
-                out[offset+2] = c.B;
-                out[offset+3] = 255;
-                offset+=4
-            })
-            return out;
-        }
-
-        //const colorsArray: Uint8ClampedArray = paletteToArray(this.#palette);
-        const canvas = document.createElement("canvas");
-        canvas.width = this.#palette.length;
-        canvas.height = 1;
-        const ctx = canvas.getContext("2d")!;
-        const imageData = new ImageData(
-            paletteToArray(this.#palette),
-            canvas.width,
-            canvas.height
-        );
-        ctx.putImageData(imageData, 0, 0);
-        const promise = new Promise<Blob>((resolve, reject) => (
-            canvas.toBlob((blob)=>{return blob? resolve(blob) : reject(new Error("couldn't create blob of palette"))},"image/png")
-        ));
-        return promise;
-    }
-
-    async loadFromBitmap(bitmap: ImageBitmap){
-        const canvas = document.createElement("canvas");
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(bitmap, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-        
-        const newPaletteSize = Math.min(imageData.data.length/4, this.maxPaletteSize);
-        const newPalette: ColorPalette = [];
-        for(let i=0; i<4*newPaletteSize; i+=4){
-            const R = imageData.data[i];
-            const G = imageData.data[i+1];
-            const B = imageData.data[i+2];
-            newPalette.push({R,G,B});
-        }
-        this.paletteSize = newPaletteSize;
-        this.#palette = newPalette;
-        this.#notifyOnPaletteChanged();
-    }
-
-    #getDefaultPalette(): ColorPalette{
+    #generateDefaultPalette(): ColorRGB[]{
         const basicColors = [
             { R: 0,   G: 0,   B: 0   }, // Black
             { R: 64,  G: 64,  B: 64  },
@@ -265,10 +223,64 @@ export class ColorPalettes{
         }
 
         return basicColors.concat(emptyColors);
+    }    
+
+    // Converts this palette to Blob, for exporting    
+    async getPaletteBlob(): Promise<Blob>{
+        const paletteToArray = (p: ColorRGB[]): Uint8ClampedArray<ArrayBuffer> => {
+            const out = new Uint8ClampedArray(p.length * 4);
+            let offset = 0;
+            p.forEach(c=>{
+                out[offset] = c.R;
+                out[offset+1] = c.G;
+                out[offset+2] = c.B;
+                out[offset+3] = 255;
+                offset+=4
+            })
+            return out;
+        }
+        
+        const canvas = document.createElement("canvas");
+        canvas.width = this.#palette.length;
+        canvas.height = 1;
+        const ctx = canvas.getContext("2d")!;
+        const imageData = new ImageData(
+            paletteToArray(this.#palette),
+            canvas.width,
+            canvas.height
+        );
+        ctx.putImageData(imageData, 0, 0);
+        const promise = new Promise<Blob>((resolve, reject) => (
+            canvas.toBlob((blob)=>{return blob? resolve(blob) : reject(new Error("couldn't create blob of palette"))},"image/png")
+        ));
+        return promise;
     }
 
+    // Loads palette from .png bitmap
+    async loadFromBitmap(bitmap: ImageBitmap){
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
 
-    getPalette(): ColorPalette{
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(bitmap, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+        
+        const newPaletteSize = Math.min(imageData.data.length/4, this.maxPaletteSize);
+        const newPalette: ColorRGB[] = [];
+        for(let i=0; i<4*newPaletteSize; i+=4){
+            const R = imageData.data[i];
+            const G = imageData.data[i+1];
+            const B = imageData.data[i+2];
+            newPalette.push({R,G,B});
+        }
+        this.paletteSize = newPaletteSize;
+        this.#palette = newPalette;
+        this.#notifyOnPaletteChanged();
+    }
+
+    getPalette(): ColorRGB[]{
         return this.#palette;
     }
 
@@ -285,7 +297,17 @@ export class ColorPalettes{
         if(oldColor !== newColor ){
             this.#notifyOnPaletteChanged();
         }
-        this.#palette[colorId] = newColor;
-        
+        this.#palette[colorId] = newColor;       
+    }
+
+    // Searches the palette for specified color
+    // returns id of the first cell with the color or null if none is found
+    findIdByColor(c: ColorRGB): number | null{        
+        this.#palette.forEach((v,i)=>{
+            if(v.R === c.R && v.G === c.G && v.B === c.B){
+                return i;
+            }
+        });
+        return null;
     }
 }

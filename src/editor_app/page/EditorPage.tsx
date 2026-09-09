@@ -369,7 +369,7 @@ export default function EditorPage() {
   const sceneListWidget: React.ReactNode = <SceneListWidget></SceneListWidget>
   
   const [colorPaletteVersion, setColorPaletteVersion] = useState<number>(0);
-  function onColorPaletteVersion(){
+  function onColorPaletteChanged(){
     setScenePropertiesVersion(prev=>prev+1);
   }
   const [isColorPaletteOpen, setIscolorPaletteOpen] = useState<boolean>(true);
@@ -377,6 +377,7 @@ export default function EditorPage() {
         isOpen={isColorPaletteOpen}
         onOpenChange={setIscolorPaletteOpen}
         version={colorPaletteVersion}
+        onChanged={onColorPaletteChanged}
   />
 
   const [editObjectVersion, setEditObjectVersion] = useState<number>(0);

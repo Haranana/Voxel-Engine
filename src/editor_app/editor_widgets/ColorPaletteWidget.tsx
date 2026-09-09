@@ -1,4 +1,4 @@
-import { ColorPalettes, reactColorTypeToRgb, rgbToReactColorType, rgbToVector3, type ColorRGB } from "../state/ColorPalettes"
+import { ColorPalette, reactColorTypeToRgb, rgbToReactColorType, rgbToVector3, vector4ToRgb, type ColorRGB } from "../state/ColorPalettes"
 import "./ColorPaletteWidget.css"
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/16/solid";
 import { PhotoshopPicker} from 'react-color'
@@ -14,29 +14,24 @@ export type ColorPaletteWidgetProps = {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     version: number;
+    onChanged: ()=>void;
 }
 
 export function ColorPaletteWidget(props: ColorPaletteWidgetProps){
-    const TriggerIcon = props.isOpen? ChevronDownIcon : ChevronRightIcon;
+    //const TriggerIcon = props.isOpen? ChevronDownIcon : ChevronRightIcon;
     const controller = useContext(ControllerContext)!;
-    const colorPalletesRef = useRef<ColorPalettes>(new ColorPalettes());
-    //const colorPalletes : ColorPalette[] = useColorPalettesStore().colorPalletes;
-    //const setPalleteColor = useColorPalettesStore().setColor;
-    //const palettesAmount: number = colorPalletes.length;
-    //const [chosenPaletteId, setChosenPaletteId] = useState<number>(0);
-    const chosenColorIdRef = useRef<number>(0);
     const [isEditColorWindowOpen, setEditColorWindowOpen] = useState<boolean>(false);
-    const [colorChangeWindowColor, setColorChangeWindowColor] = useState<ColorRGB>(colorPalletesRef.current.getColor(chosenColorIdRef.current)!)
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [colorChangeWindowColor, setColorChangeWindowColor] = useState<ColorRGB>(controller.getCurrentColorRgb())
+    const inputRef = useRef<HTMLInputElement>(null); //for palette import path
 
+    /*
     function onPaletteChanged(){          
-        setColorChangeWindowColor(colorPalletesRef.current.getColor(chosenColorIdRef.current)!);
-        controller.setCurrentColor(rgbToVector3(colorPalletesRef.current.getColor(chosenColorIdRef.current)!)) ;
-    }
+        setColorChangeWindowColor(vector4ToRgb(controller.getCurrentColor()));
+    }*/
 
     async function downloadPalette(){
         try{
-            const blob = await colorPalletesRef.current.getPaletteBlob();
+            const blob = await controller.getColorPalette().getPaletteBlob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
@@ -53,25 +48,22 @@ export function ColorPaletteWidget(props: ColorPaletteWidgetProps){
         if (!file) return;
 
         const bitmap = await createImageBitmap(file);
-        colorPalletesRef.current.loadFromBitmap(bitmap);
-
+        controller.getColorPalette().loadFromBitmap(bitmap);
     }
 
+    
     useEffect(()=>{
-        controller.setCurrentColor(rgbToVector3(colorPalletesRef.current.getColor(chosenColorIdRef.current)!));
-        colorPalletesRef.current.paletteChangedEvent.subscribe(onPaletteChanged);
+        controller.getColorPalette().paletteChangedEvent.subscribe(props.onChanged);
     },[])
 
     return <div className="ColorPaletteWidget">
         <div className="ColorPaletteGrid">
         {
-            Array.from(colorPalletesRef.current.getPalette(), (c: ColorRGB, i)=>{
-                return <div className={`ColorPaletteCell ${chosenColorIdRef.current===i? "ChosenColorPaletteCell" : ""}`} 
+            Array.from(controller.getColorPalette().getPalette(), (c: ColorRGB, i)=>{
+                return <div className={`ColorPaletteCell ${controller.getCurrentColorId()===i? "ChosenColorPaletteCell" : ""}`} 
                 onClick={(_)=>{
-                    chosenColorIdRef.current = i; 
-                    const newCurrentColor = rgbToVector3(colorPalletesRef.current.getColor(i)!);
-                    controller.setCurrentColor(newCurrentColor);
-                    setColorChangeWindowColor(colorPalletesRef.current.getColor(i)!);
+                    controller.setCurrentColor(i); 
+                    setColorChangeWindowColor(controller.getCurrentColorRgb());
                 }}
                 key={i}
                 style={{background: `rgba(${c.R},${c.G},${c.B})`}}></div>
@@ -80,7 +72,7 @@ export function ColorPaletteWidget(props: ColorPaletteWidgetProps){
         </div>
         <div className="ColorPaletteOptions">
             <Tooltip text="Load Default Palette">
-                <button className="ColorPaletteOptionsButton ColorPaletteLoadDefaultButton" onClick={()=>{colorPalletesRef.current.loadDefaultPalette()}}>
+                <button className="ColorPaletteOptionsButton ColorPaletteLoadDefaultButton" onClick={()=>{controller.getColorPalette().loadDefaultPalette()}}>
                     <SolarRefreshOutline/>
                 </button>
             </Tooltip>
@@ -110,8 +102,8 @@ export function ColorPaletteWidget(props: ColorPaletteWidgetProps){
             <PhotoshopPicker className="EditColorWindow"  
             onChangeComplete={(_)=>{}}
             onAccept={(_)=>{
-                colorPalletesRef.current.setCustomColor(chosenColorIdRef.current, (colorChangeWindowColor));
-                controller.setCurrentColor(rgbToVector3(colorChangeWindowColor));
+                controller.setCustomColor(controller.getCurrentColorId(), colorChangeWindowColor);   
+                controller.setCurrentColor(controller.getCurrentColorId())             
                 setEditColorWindowOpen(false)}
             } 
             onChange={(c)=>{
@@ -119,7 +111,7 @@ export function ColorPaletteWidget(props: ColorPaletteWidgetProps){
             }
             onCancel={(_)=>{
                 setEditColorWindowOpen(false); 
-                setColorChangeWindowColor(colorPalletesRef.current.getColor(chosenColorIdRef.current)!)}
+                setColorChangeWindowColor(controller.getCurrentColorRgb())}
             }
             color={rgbToReactColorType(colorChangeWindowColor)}></PhotoshopPicker> 
             : ""

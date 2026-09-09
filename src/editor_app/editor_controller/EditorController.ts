@@ -18,7 +18,11 @@ import { Plane } from "../../math/geometry/plane";
 import { Spaces } from "../../math/spaces";
 import { Ray } from "../../math/geometry/ray";
 import { planeRayIntersection } from "../../voxel_engine/intersection_tests/voxel-tests";
+import { ColorPalette, rgbToVector4, vector4ToRgb, type ColorRGB } from "../state/ColorPalettes";
 
+/*
+    EditorController is Responsible for communication from UI to Voxel Engine, Render Engine and Domain
+*/
 
 type SelectSession = {
     startCoords: Vector3 | null, //if select session uses screen coordinates then ignore z parameter
@@ -74,12 +78,14 @@ export const editToSelectCompatibility = new Map<EditMode, Set<SelectMode>>([
 ]);
 
 export class EditorController{
+
     selectMode: SelectMode  = "Voxel";
     editMode: EditMode  = "Add";
     scene: Scene | null = null;
     renderScene: (()=>void) | null = null;
     readIdTexture: ((p: Vector2)=>Promise<(number|undefined)>) | null = null;
     initialized: boolean = false;
+
 
     constructor(){}
 
@@ -945,16 +951,20 @@ export class EditorController{
             }  
         }else if(selectType === "dynamic"){ //on dynamic select type selection happened on pointer move, on pointer down does action and restarts select
             if(this.editMode=="Add"){
-                voxelObjectChanged = voxelObject.addSelectedVoxels(this.currentColor, "dynamic")!=0;
+                voxelObjectChanged = voxelObject.addSelectedVoxels(this.#currentColor, "dynamic")!=0;
                 selectedAreaChanged = voxelObject.resetSelect("dynamic")!=0;
             }else if(this.editMode=="Paint"){
-                voxelObjectChanged = voxelObject.paintSelectedVoxels(this.currentColor, "dynamic")!=0;
+                voxelObjectChanged = voxelObject.paintSelectedVoxels(this.#currentColor, "dynamic")!=0;
                 selectedAreaChanged = voxelObject.resetSelect("dynamic")!=0;
             }else if(this.editMode=="Remove"){
                 voxelObjectChanged = voxelObject.removeSelectedVoxels("dynamic")!=0;
                 selectedAreaChanged = voxelObject.resetSelect("dynamic")!=0;
             }else if(this.editMode=="PickColor"){
-                //todo
+                const pickedColorAsVector = voxelObject.getVoxel(hitVoxel)?.color;
+                if(!pickedColorAsVector) return; //hit voxel is empty
+                const pickedColor: ColorRGB = vector4ToRgb(pickedColorAsVector);
+                this.#colorPalette.setCustomColor(this.#currentColorId, pickedColor);
+                this.setCurrentColor(this.#currentColorId);
             }
 
             if(this.selectMode=="Cube"){
@@ -1113,9 +1123,9 @@ export class EditorController{
             this.selectSession.endCoords = hitVoxel;
             if(this.selectMode=="Cube"){
                 if(this.editMode=="Add"){
-                    voxelObject.addSelectedVoxels(this.currentColor, selectType);
+                    voxelObject.addSelectedVoxels(this.#currentColor, selectType);
                 }else if(this.editMode=="Paint"){
-                    voxelObject.paintSelectedVoxels(this.currentColor, selectType);
+                    voxelObject.paintSelectedVoxels(this.#currentColor, selectType);
                 }else if(this.editMode=="Remove"){
                     voxelObject.removeSelectedVoxels(selectType);
                 }else if(this.editMode=="Select"){                    
@@ -1127,7 +1137,7 @@ export class EditorController{
         }
         if(this.hasSelectSessionStarted() && this.selectMode==="Marquee"){
                 if(this.editMode=="Paint"){
-                    voxelObject.paintSelectedVoxels(this.currentColor, selectType);
+                    voxelObject.paintSelectedVoxels(this.#currentColor, selectType);
                 }else if(this.editMode=="Remove"){
                     voxelObject.removeSelectedVoxels(selectType);
                 }else if(this.editMode=="Select"){
@@ -1352,20 +1362,38 @@ export class EditorController{
     //color
 
     //current color should in most cases have alpha of 255
-    currentColor: Vector4 = new Vector4(0,0,0,255);
-    
-    setCurrentColor(c: Vector3){
-        if(!this.initialized) return;
-        const scene = this.scene!;
-        const voxelObject = scene.getActiveVoxelObject();
-        if(!voxelObject) return;
+    #colorPalette: ColorPalette = new ColorPalette();
+    #currentColorId: number = 0;
+    #currentColor: Vector4 = rgbToVector4(this.#colorPalette.getColor(this.#currentColorId)!,255);
 
-        this.currentColor = new Vector4(c.x, c.y, c.z, 255);
-        voxelObject.setSelectedVoxelsColor(c);
+    getColorPalette(): ColorPalette{
+        return this.#colorPalette;
     }
 
     getCurrentColor(): Vector4{
-        return this.currentColor;
+        return this.#currentColor;
+    }
+
+    getCurrentColorRgb(): ColorRGB{
+        return vector4ToRgb(this.#currentColor);
+    }
+
+    getCurrentColorId(): number{
+        return this.#currentColorId;
+    }
+
+    setCurrentColor(id: number): boolean{
+        if(id < this.#colorPalette.paletteSize){
+            const newColorRgb = this.#colorPalette.getColor(id)!;
+            this.#currentColor = rgbToVector4(newColorRgb);
+            this.#currentColorId = id;            
+            return true;
+        }
+        return false;        
+    }    
+
+    setCustomColor(colorId: number, newColor: ColorRGB): void{
+        this.#colorPalette.setCustomColor(colorId, newColor);
     }
 
     //voxel object advanced modifiers
@@ -1513,7 +1541,7 @@ export class EditorController{
         const voxelObject = scene.getActiveVoxelObject();
         if(!voxelObject) return;
 
-        const objectModified: boolean = voxelObject.fillSelectedAreaVoxels(this.currentColor, "static") > 0;
+        const objectModified: boolean = voxelObject.fillSelectedAreaVoxels(this.#currentColor, "static") > 0;
         if(objectModified){
             this.renderScene!();
         }        
@@ -1537,7 +1565,7 @@ export class EditorController{
         const voxelObject = scene.getActiveVoxelObject();
         if(!voxelObject) return;
 
-        const objectModified: boolean = voxelObject.reverseSelectedAreaVoxels(this.currentColor, "static") > 0;
+        const objectModified: boolean = voxelObject.reverseSelectedAreaVoxels(this.#currentColor, "static") > 0;
 
         if(objectModified){
             this.renderScene!();
@@ -1551,7 +1579,7 @@ export class EditorController{
         if(!voxelObject) return;
 
         const objectModified: boolean = voxelObject.selectEmptyVoxels("dynamic") > 0;
-        voxelObject.addSelectedVoxels(this.currentColor, "dynamic");
+        voxelObject.addSelectedVoxels(this.#currentColor, "dynamic");
         voxelObject.resetSelect("dynamic");
         if(objectModified){
             this.renderScene!();
@@ -1579,7 +1607,7 @@ export class EditorController{
         if(!voxelObject) return;
 
         voxelObject.selectAllVoxels("dynamic");
-        voxelObject.reverseSelectedVoxels(this.currentColor, "dynamic");
+        voxelObject.reverseSelectedVoxels(this.#currentColor, "dynamic");
         voxelObject.resetSelect("dynamic");
         this.renderScene!();
     }
@@ -1595,7 +1623,7 @@ export class EditorController{
         let voxelObject = scene.getActiveVoxelObject();
         if(!voxelObject) return;
 
-        voxelObject.setVoxels(generateSphereVoxelArray(voxelObject.size, this.currentColor))
+        voxelObject.setVoxels(generateSphereVoxelArray(voxelObject.size, this.#currentColor))
         this.renderScene!();
     }
 
@@ -1605,7 +1633,7 @@ export class EditorController{
         let voxelObject = scene.getActiveVoxelObject();
         if(!voxelObject) return;
 
-        voxelObject.setVoxels(generatePyramidVoxelArray(voxelObject.size, this.currentColor))
+        voxelObject.setVoxels(generatePyramidVoxelArray(voxelObject.size, this.#currentColor))
         this.renderScene!();
     }
 
@@ -1615,7 +1643,7 @@ export class EditorController{
         let voxelObject = scene.getActiveVoxelObject();
         if(!voxelObject) return;
 
-        voxelObject.setVoxels(generateCylinderVoxelArray(voxelObject.size, this.currentColor));
+        voxelObject.setVoxels(generateCylinderVoxelArray(voxelObject.size, this.#currentColor));
         this.renderScene!();
     }
 
