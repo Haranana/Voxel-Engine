@@ -266,8 +266,63 @@ export class VoxelObject extends SceneObject{
         RenderableObjectManager.rebuildVoBorderGridRo(this, this.#borderGridRo);
     }
 
+    // Ghost voxels are voxels which are rendered instead of actual voxels in given position
+    // but do not take place inside the grid
+    // used for moving action
+    ghostVoxels: Map<string, Voxel> = new Map();
+
+    // Adds voxel to ghost voxels map if given id is correct grid coordinate
+    // returns true if voxel was added, false otherwise 
+    addGhostVoxel(gridCoord: Vector3, voxel: Voxel): boolean{
+        if(this.voxelExists(gridCoord)){
+            this.ghostVoxels.set(gridCoord.toString(), {...voxel})
+            this.#notifyOfVoxelsChange();
+            return true;
+        }
+        return false;
+    }
+
+    // Clears ghost voxels map
+    // returns size of ghost voxels map before clearing
+    clearGhostVoxels(): number{
+        const out = this.ghostVoxels.size;
+        this.ghostVoxels.clear();
+        if(out>0) this.#notifyOfVoxelsChange();
+        return out;
+    }
+
+    // Copies each voxel in given selected area set to ghost voxels map
+    // returns amount of copied voxels;
+    copySelectedAreaToGhostVoxels(areaType: SelectedAreaType){
+        const selectedArea = this.getSelectedArea(areaType);
+        let out = 0;
+        selectedArea.voxels.forEach((v)=>{
+            const gridCoord = Vector3.fromString(v); 
+            if( this.addGhostVoxel(gridCoord , this.getVoxel(gridCoord)!) ) out++;
+        });
+        if(out > 0){
+            this.#notifyOfVoxelsChange();
+        }
+        return out;
+    }
+
+    // Copies each voxel in ghost voxels map and replaces grid voxel of same id with it
+    // returns amount of copied voxels
+    copyGhostVoxelsToGrid(){
+        let out = 0;
+        this.ghostVoxels.forEach((voxel, gridPosition)=>{
+            if(this.setVoxel(Vector3.fromString(gridPosition) , voxel)){
+                out++;
+            }
+        })
+        if(out>0){
+            this.#notifyOfVoxelsChange();
+        }
+        return out;
+    }
+
     //receives point in this object model space
-    //returns id of possible vexel in this object
+    //returns id of possible voxel in this object
     //whether any voxel exists under this id is unkown
     //assumes that (0,0,0) is in the middle of the object
     pointCoordinatesToVoxelId(v: Vector3): Vector3 {
@@ -276,6 +331,16 @@ export class VoxelObject extends SceneObject{
         const zCord = Math.floor(v.z / this.#voxelSize) + Math.floor(this.size.z / 2);
 
         return new Vector3(xCord, yCord, zCord);
+    }
+
+    // Returns middle of voxel of given id 
+    // Function doesn't check whether voxel of given id actually exists in this voxel object
+    voxelIdToModelSpace(v: Vector3): Vector3{
+        const objectStart : Vector3 = new Vector3(-this.size.x/2 , -this.size.y/2, -this.size.z/2) 
+        const voxelSize = this.getVoxelSize();
+        const voxelStartPosition = new Vector3( (objectStart.x + v.x)*voxelSize , (objectStart.y+v.y)*voxelSize, (objectStart.z+v.z)*voxelSize);
+        const voxelMiddlePosition = new Vector3(voxelStartPosition.x + voxelSize/2, voxelStartPosition.y + voxelSize/2, voxelStartPosition.z + voxelSize/2);
+        return voxelMiddlePosition;
     }
 
     //receives voxel id
@@ -299,11 +364,9 @@ export class VoxelObject extends SceneObject{
        
     }
 
-    setVoxel(pos: Vector3, newVoxel: Voxel){
+    setVoxel(pos: Vector3, newVoxel: Voxel | null){
         try{
-            this.voxels[pos.x][pos.y][pos
-    
-                .z] = newVoxel;
+            this.voxels[pos.x][pos.y][pos.z] = newVoxel;
             this.#notifyOfVoxelsChange();
             return true;
         }catch(e: any){
@@ -368,8 +431,10 @@ export class VoxelObject extends SceneObject{
     //adds voxel of given coordinates to set of selected voxels
     //returns true if successfuly added
     //returns false if voxel doesn't exist or if voxel was already selected
-    selectVoxel(v: Vector3, areaType: SelectedAreaType): boolean{
-        if(this.voxelExists(v)){
+    //allowEmpty - true if both empty and non-empty voxels can be selected, 
+    //only non-empty ones can be selected if false
+    selectVoxel(v: Vector3, areaType: SelectedAreaType, allowEmpty: boolean = true): boolean{
+        if(this.voxelExists(v) && (allowEmpty || this.isVoxelNonEmpty(v))){
             if(areaType==="dynamic"){
                 this.resetSelect(areaType);
             }            
@@ -515,7 +580,7 @@ export class VoxelObject extends SceneObject{
         });
     }
 
-    selectCube(vStart: Vector3, vEnd: Vector3, areaType: SelectedAreaType): boolean{
+    selectCube(vStart: Vector3, vEnd: Vector3, areaType: SelectedAreaType, allowEmpty: boolean = true): boolean{
         if(!this.voxelExists(vStart)) return false;
         if(areaType==="dynamic"){
             this.resetSelect(areaType);
@@ -538,6 +603,8 @@ export class VoxelObject extends SceneObject{
         for(let x: number = correctedVStart.x; x <= correctedVEnd.x; x++){
             for(let y: number = correctedVStart.y; y <= correctedVEnd.y; y++){
                 for(let z: number = correctedVStart.z; z <= correctedVEnd.z; z++){
+                    const v = new Vector3(x,y,z);
+                    if(allowEmpty || this.isVoxelNonEmpty(v))
                     voxelsToSelect.push(new Vector3(x,y,z));
                 }
             }
@@ -1298,4 +1365,155 @@ rotateSelectedVoxelsInSelectedAreaByZ(areaType: SelectedAreaType): number {
         }
         return union.size;
     }
+
+    /*
+        If it's possible move each voxel in grid and selectedArea of given type in given direction
+        delta should be in voxels
+        eg. delta: Vector3(12,4,-2) means that each voxels will be move 12 voxels right, 4 voxels down and 2 voxels back
+        returns true if such move is possible - each voxel would be moved to position withing voxel object
+        returns false otherwise 
+    */
+    moveSelectedVoxelsAndArea(type: SelectedAreaType, delta: Vector3, axis?: "X" | "Y" | "Z" ): boolean{
+        let out = true;
+        const selectedArea = this.getSelectedArea(type);
+        let refinedDelta = new Vector3(0,0,0);
+        if(axis){
+            refinedDelta = axis === 'X'? new Vector3(delta.x, 0,0) : axis === 'Y'? new Vector3(0,delta.y,0) : new Vector3(0,0,delta.z); 
+        }else{
+            refinedDelta = delta; 
+        }
+
+        selectedArea.voxels.forEach((vStr)=>{
+            const v = Vector3.fromString(vStr).addVector(refinedDelta);
+            if(!this.voxelExists(v)){
+                out = false;
+            }
+        })
+
+        if(out){
+            const newSelectedAreaVoxels = new Set<string>();
+            selectedArea.voxels.forEach((vStr)=>{
+                const v = Vector3.fromString(vStr)
+                const vMoved = v.addVector(refinedDelta);
+                const voxel = this.getVoxel(v);
+                this.setVoxel(v, null);
+                this.setVoxel(vMoved, voxel);
+                newSelectedAreaVoxels.add(vMoved.toString());             
+            })            
+
+            if(selectedArea.voxels.size>0){
+                selectedArea.voxels = newSelectedAreaVoxels;                
+                this.#notifyOfSelectedAreaChange();
+                this.#notifyOfVoxelsChange();
+            }
+        }
+
+        return out;
+    }
+
+    moveSelectedArea(type: SelectedAreaType, delta: Vector3, axis?: "X" | "Y" | "Z"): boolean{
+        let out = true;
+        const selectedArea = this.getSelectedArea(type);
+        let refinedDelta = new Vector3(0,0,0);
+        if(axis){
+            refinedDelta = axis === 'X'? new Vector3(delta.x, 0,0) : axis === 'Y'? new Vector3(0,delta.y,0) : new Vector3(0,0,delta.z); 
+        }else{
+            refinedDelta = delta; 
+        }
+
+        selectedArea.voxels.forEach((vStr)=>{
+            const v = Vector3.fromString(vStr).addVector(refinedDelta);
+            if(!this.voxelExists(v)){
+                out = false;
+            }
+        })
+
+        if(out){
+            const newSelectedAreaVoxels = new Set<string>();
+            selectedArea.voxels.forEach((vStr)=>{
+                const v = Vector3.fromString(vStr)
+                const vMoved = v.addVector(refinedDelta);
+                newSelectedAreaVoxels.add(vMoved.toString());             
+            })            
+
+            if(selectedArea.voxels.size>0){
+                selectedArea.voxels = newSelectedAreaVoxels;                
+                this.#notifyOfSelectedAreaChange();
+            }
+        }
+
+        return out;        
+    }
+
+    moveGhostVoxels(delta: Vector3, axis?: "X" | "Y" | "Z"): boolean{
+        let out = true;
+        let refinedDelta = new Vector3(0,0,0);
+        if(axis){
+            refinedDelta = axis === 'X'? new Vector3(delta.x, 0,0) : axis === 'Y'? new Vector3(0,delta.y,0) : new Vector3(0,0,delta.z); 
+        }else{
+            refinedDelta = delta; 
+        }
+
+        this.ghostVoxels.forEach((_, gridPosStr)=>{
+            const gridPosMoved = Vector3.fromString(gridPosStr).addVector(refinedDelta);
+            if(!this.voxelExists(gridPosMoved)){
+                out = false;
+            }
+        })
+
+        if(out){
+            const newGhostVoxels = new Map<string, Voxel>();
+            this.ghostVoxels.forEach((v, gridPosStr)=>{
+                //const v = Vector3.fromString(vStr)
+                const gridPosMoved = Vector3.fromString(gridPosStr).addVector(refinedDelta);
+                newGhostVoxels.set(gridPosMoved.toString(), {...v});         
+            })            
+
+            this.ghostVoxels = newGhostVoxels;
+            if(newGhostVoxels.size>0){                                                
+                this.#notifyOfVoxelsChange();
+            }
+        }
+
+        return out;
+    }
+
+    /*
+        Returns middle of selected area in voxel grid id
+        middle is calculated as floor of the half beetwen min and max id in voxels (center of bounding box)
+        if no voxels are selected in given area returns null
+    */
+    getSelectedAreaMiddle(type: SelectedAreaType): Vector3 | null{
+        const selectedArea = this.getSelectedArea(type);
+        if(selectedArea.voxels.size === 0 ) return null;
+
+        const out = new Vector3(0,0,0);
+        
+        const min = new Vector3(this.size.x,this.size.y,this.size.z);
+        const max = new Vector3(0,0,0);
+
+        selectedArea.voxels.forEach((vStr)=>{
+            const v = Vector3.fromString(vStr)
+            if(v.x > max.x) max.x = v.x;
+            if(v.y > max.y) max.y = v.y;
+            if(v.z > max.z) max.z = v.z;
+
+            if(v.x < min.x) min.x = v.x;
+            if(v.y < min.y) min.y = v.y;
+            if(v.z < min.z) min.z = v.z;
+        })    
+
+        out.x = Math.floor((min.x + max.x) / 2);
+        out.y = Math.floor((min.y + max.y) / 2);
+        out.z = Math.floor((min.z + max.z) / 2);
+        
+        return out;
+    }
+
+    // Checks whether grid voxel of given position is non-empty or is a ghost voxel
+    isVoxelUsed(gridPosition: Vector3){
+        return this.ghostVoxels.has(gridPosition.toString()) || this.isVoxelNonEmpty(gridPosition);
+    }
+
+
 }

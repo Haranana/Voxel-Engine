@@ -1,4 +1,4 @@
-import { PerspectiveMatrices } from "../../../math/matrices";
+import { Matrices4, PerspectiveMatrices } from "../../../math/matrices";
 import type { Matrix4 } from "../../../math/matrix4.type";
 import { degreeToRadians } from "../../../math/utils";
 import type { Vector2 } from "../../../math/vector2.type";
@@ -10,7 +10,20 @@ export type ProjectionType =
   | "orthographic"
   | "perspective";
 
+// Not really used right now
+type CameraCache = {
+    orthographicProjection: Matrix4 | null,
+    perspectiveProjection: Matrix4 | null,
+    view: Matrix4 | null,
+}
+
 export class Camera extends SceneObject {
+    #cache: CameraCache = {
+        orthographicProjection: null,
+        perspectiveProjection: null,
+        view: null,
+    };
+
     fovY: number = 0.0;
     near: number = 0.0;
     far: number = 1000.0;
@@ -29,18 +42,34 @@ export class Camera extends SceneObject {
     pitch: number = 0.0;
     yaw: number = 0.0;
 
+
     constructor(id: string, target: Vector3, distance: number){
         super(id);
         this.distance = distance;
         this.target = target;
     }
 
+    // Returns projection matrix of set projection type
+    // caches out matrix
     getProjectionMatrix(canvasSize: Vector2): Matrix4{
-        return this.projectionType == "perspective"?
-        PerspectiveMatrices.PerspectiveProjection(
-            degreeToRadians(this.fovY), this.near, this.far, canvasSize.x/canvasSize.y) : 
-        PerspectiveMatrices.orthogonalProjection(
-            -canvasSize.x/2, canvasSize.x/2,-canvasSize.y/2, canvasSize.y/2, this.near, this.far)
+        let out: Matrix4 = Matrices4.identity();        
+            
+        if(this.projectionType == 'perspective'){
+            out = PerspectiveMatrices.PerspectiveProjection(
+                degreeToRadians(this.fovY), this.near, this.far, canvasSize.x/canvasSize.y)
+            this.#cache.perspectiveProjection = PerspectiveMatrices.PerspectiveProjection(
+                degreeToRadians(this.fovY), this.near, this.far, canvasSize.x/canvasSize.y)
+        }else{
+            out =PerspectiveMatrices.orthogonalProjection(
+                -canvasSize.x/2, canvasSize.x/2,-canvasSize.y/2, canvasSize.y/2, this.near, this.far)
+            this.#cache.perspectiveProjection = PerspectiveMatrices.orthogonalProjection(
+                -canvasSize.x/2, canvasSize.x/2,-canvasSize.y/2, canvasSize.y/2, this.near, this.far)
+        }
+        return out;
+    }
+
+    getProjectionMatrixCached(type: ProjectionType): Matrix4 | null{
+        return type == 'perspective'? this.#cache.perspectiveProjection : this.#cache.orthographicProjection;
     }
 
 

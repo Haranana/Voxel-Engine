@@ -29,7 +29,7 @@ export class Scene{
     }
 
     sceneGizmosRenderOptions: SceneGizmosRenderOptions = {
-        cameraControllGizmo: true,
+        cameraControllGizmo: true, //misspelled, should be 'Control', todo fix
         objectMoveGizmo: false,
         objectResizeGizmo: false,
         objectRotateGizmo: false,
@@ -153,6 +153,10 @@ export class Scene{
         this.sceneGizmosRenderOptions.objectMoveGizmo = !this.sceneGizmosRenderOptions.objectMoveGizmo;
     }
 
+    setObjectMoveGizmo(on: boolean){
+        this.sceneGizmosRenderOptions.objectMoveGizmo = on;
+    }
+
     toggleObjectResizeGizmo(){
         this.sceneGizmosRenderOptions.objectResizeGizmo = !this.sceneGizmosRenderOptions.objectResizeGizmo;
     }
@@ -184,6 +188,10 @@ export class Scene{
     //returns copy
     getSeletedVoxelObjectRenderOptions(): SelectedVoxelObjectRenderOptions{
         return {...this.seletedVoxelObjectRenderOptions}
+    }
+
+    getSceneGizmosRenderOptions(): SceneGizmosRenderOptions{
+        return {...this.sceneGizmosRenderOptions}
     }
 
     /*

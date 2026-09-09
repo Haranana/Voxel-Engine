@@ -173,7 +173,7 @@ export class RenderableObjectManager{
         ro.screenTransform = null;
     }
 
-    //assumes that gizmo mesh never has to modified
+    //assumes that gizmo mesh never has to be modified
     static createGizmoRo(gizmo: Gizmo): RenderableObject{
         const out: RenderableObject = new RenderableObject();
         if(gizmo.gizmoType === "world"){ 
@@ -184,7 +184,7 @@ export class RenderableObjectManager{
             const shader = new Shader(screenObjectShader(), "vertexShader", "fragmentShader", 
             [new ViewportShaderResources(0) ,new CameraShaderResources(1),new ScreenObjectShaderResources(2), new GizmoCameraShaderResources(3)]);
             out.material = {shader};
-        }
+        }        
         out.mesh = gizmo.mesh;
         out.collider = null; 
         out.screenTransform = gizmo.screenTransform;

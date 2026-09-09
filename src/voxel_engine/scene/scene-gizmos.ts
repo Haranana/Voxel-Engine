@@ -59,25 +59,19 @@ export class SceneGizmos{
             gizmo.gizmoRo = RenderableObjectManager.createGizmoRo(gizmo);            
         }
         RenderableObjectManager.rebuildGizmoRo(gizmo, gizmo.gizmoRo)
-        if(!gizmo.gizmoRo){
-            gizmo.gizmoRo = RenderableObjectManager.createGizmoRo(gizmo);            
-        }
-        RenderableObjectManager.rebuildGizmoRo(gizmo, gizmo.gizmoRo)
 
         return gizmo.gizmoRo;
     }
     static #createMoveRoGizmo(): Gizmo{
         const out = new Gizmo("move object gizmo");
         out.mesh = generateMoveGizmoMesh();
-        out.screenTransform = null;
-        out.worldTransform = {
-            translation: new Vector3(0.5,0.5,0.5),
+        out.screenTransform = {
+            anchor: new Vector2(0,0),
             scale: new Vector3(1,1,1),
             rotation: new Vector3(0,0,0),
-        }
-        out.gizmoType = "world";
+        };
+        out.gizmoType = "screen";
         out.gizmoRo = RenderableObjectManager.createGizmoRo(out);
-
         return out;
     }
 

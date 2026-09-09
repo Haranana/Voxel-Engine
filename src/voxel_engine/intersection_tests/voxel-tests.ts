@@ -1,4 +1,5 @@
 import type { Plane } from "../../math/geometry/plane"
+import type { Ray } from "../../math/geometry/ray";
 import type { Vector3 } from "../../math/vector3.type"
 
 export type IntersectionResult = "outside" | "inside" | "intersecting"
@@ -25,5 +26,15 @@ export function planeAABBIntersection(boxMinVertex: Vector3, boxMaxVertex: Vecto
         return "inside"
     }else{
         return "intersecting"
+    }
+}
+
+export function planeRayIntersection(ray: Ray, plane: Plane): Vector3 | null{
+    if(Math.abs(plane.getNormal().dotProduct(ray.direction)) < 1e-6){
+        return null;
+    }else{        
+        const d = -plane.getNormal().dotProduct(plane.getPoint())
+        const t =  -(plane.getNormal().dotProduct(ray.origin)+d) / (plane.getNormal().dotProduct(ray.direction));  
+        return ray.get(t)
     }
 }

@@ -6,12 +6,9 @@ export type PickingInteraction =
 | 'CameraGizmoNegY'
 | 'CameraGizmoPosZ'
 | 'CameraGizmoNegZ'
-| 'MoveGizmoPosX'
-| 'MoveGizmoNegX'
-| 'MoveGizmoPosY'
-| 'MoveGizmoNegY'
-| 'MoveGizmoPosZ'
-| 'MoveGizmoNegZ'
+| 'MoveGizmoX'
+| 'MoveGizmoY'
+| 'MoveGizmoZ'
 | 'ResizeGizmoPosX'
 | 'ResizeGizmoNegX'
 | 'ResizeGizmoPosY'
@@ -35,12 +32,10 @@ export const pickingInteractions: ReadonlyMap<number, PickingInteraction> = new 
     [5,  "CameraGizmoPosZ"],
     [6,  "CameraGizmoNegZ"],
 
-    [7,  "MoveGizmoPosX"],
-    [8,  "MoveGizmoNegX"],
-    [9,  "MoveGizmoPosY"],
-    [10, "MoveGizmoNegY"],
-    [11, "MoveGizmoPosZ"],
-    [12, "MoveGizmoNegZ"],
+    [7,  "MoveGizmoX"],
+    [8,  "MoveGizmoY"],
+    [9,  "MoveGizmoZ"],
+
 
     [13, "ResizeGizmoPosX"],
     [14, "ResizeGizmoNegX"],

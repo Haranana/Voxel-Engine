@@ -285,7 +285,7 @@ export function screenObjectShader(){
         let modelPosition = vec4f(v.position, 1.0);
         let worldPosition = transform * modelPosition; 
         let clipPosition = (gizmoCameraBuffer.projectionMatrix * gizmoCameraBuffer.viewMatrix * worldPosition).xyzw;
-        
+
         out.position = vec4f(clipPosition.x + anchorNdc.x * clipPosition.w , clipPosition.y + anchorNdc.y * clipPosition.w , clipPosition.z, clipPosition.w);
         out.quadUV = v.quadUV;
         out.color = v.color;

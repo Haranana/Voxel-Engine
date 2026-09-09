@@ -11,6 +11,7 @@ import MdiVectorRectangle from "../../icons/MdiVectorRectangle";
 import './EditTools.css'
 import { selectToEditCompatibility, type EditMode, type SelectMode } from "../../editor_controller/EditorController";
 import TablerColorPicker from "../../icons/TablerColorPicker";
+import MdiAxisArrow from "../../icons/MdiAxisArrow";
 
 export type EditToolsWidgetProps = {
     isOpen: boolean;
@@ -74,7 +75,7 @@ export function EditToolsWidget(props: EditToolsWidgetProps){
                     onClick={() => { controller.setEditMode("Move"); props.onValueChange() }}
                     disabled={!selectToEditCompatibility.get(controller.getSelectMode())!.has("Move")}
                 >
-                    <MaterialSymbolsLightMoveSelectionRightOutlineRounded/>
+                    <MdiAxisArrow/>
                 </button>
             </Tooltip>
 

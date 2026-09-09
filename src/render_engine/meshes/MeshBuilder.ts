@@ -50,6 +50,12 @@ export type MeshBuilderVertex = {
     pickingInteractionId?: number
 }
 
+export type MeshBuilderTriangle = {
+    firstVertex: MeshBuilderVertex,
+    secondVertex: MeshBuilderVertex
+    thirdVertex: MeshBuilderVertex
+}
+
 export type MeshBuilderQuad = {
     leftTop: MeshBuilderVertex, 
     rightTop: MeshBuilderVertex, 
@@ -315,6 +321,31 @@ export class MeshBuilder{
         }else if(this.meshBuilderLayout.topology == "triangle-list"){
              this.indices.push(currentVertexIndex, currentVertexIndex+1, currentVertexIndex+2, currentVertexIndex+2, currentVertexIndex+3, currentVertexIndex);
         }
+    }
+
+    /*
+        Input vertice should be in order defined by the layout (clockwise by the default)
+    */
+    addTriangle(triangle: MeshBuilderTriangle){
+        const v1: MeshBuilderVertex = {...triangle.firstVertex};
+        const v2: MeshBuilderVertex = {...triangle.secondVertex};
+        const v3: MeshBuilderVertex = {...triangle.thirdVertex};
+        
+        if(!this.#doesVertexFitLayout(v1) || 
+        !this.#doesVertexFitLayout(v2) || 
+        !this.#doesVertexFitLayout(v3)){
+            throw Error(`Vertices fields are not consistent with declared layout`)
+        }         
+
+        const currentVertexIndex : number = this.vertices.length; 
+        this.vertices.push(v1);
+        this.vertices.push(v2)
+        this.vertices.push(v3)
+        if(this.meshBuilderLayout.topology == "line-list"){
+            this.indices.push(currentVertexIndex, currentVertexIndex+1, currentVertexIndex+1, currentVertexIndex+2, currentVertexIndex+2, currentVertexIndex);
+        }else if(this.meshBuilderLayout.topology == "triangle-list"){
+             this.indices.push(currentVertexIndex, currentVertexIndex+1, currentVertexIndex+2);
+        }        
     }
 
     addLine(first: MeshBuilderVertex, second: MeshBuilderVertex){

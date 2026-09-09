@@ -6,6 +6,7 @@ import { degreeToRadians } from "../../math/utils"
 import { Vector3 } from "../../math/vector3.type"
 import { Vector2 } from "../../math/vector2.type"
 import type { Matrix4 } from "../../math/matrix4.type"
+import type { ProjectionType } from "../../voxel_engine/scene-objects/camera/camera"
 
 export type ShaderResourceContext = {
     object: RenderableObject,
@@ -95,6 +96,8 @@ export class GizmoCameraShaderResources extends ShaderResources{
     far: number = 5000;
     distance: number = 1000;
 
+    projectionType: ProjectionType = 'perspective';
+
     getBindGroup(): GPUBindGroup | null{
         return this.bindGroup;
     }
@@ -153,8 +156,11 @@ export class GizmoCameraShaderResources extends ShaderResources{
             new Vector3(0, 1, 0)
         );        
 
-        const aspect = context.renderContext.viewportContext.resolution.x / context.renderContext.viewportContext.resolution.y; 
-        const projectionMatrix = PerspectiveMatrices.PerspectiveProjection(this.fovY, this.near, this.far, aspect);        
+        const resolution = context.renderContext.viewportContext.resolution;
+        const aspect = resolution.x / resolution.y; 
+        const projectionMatrix = this.projectionType==='perspective'? 
+            PerspectiveMatrices.PerspectiveProjection(this.fovY, this.near, this.far, aspect) :
+            PerspectiveMatrices.orthogonalProjection(-resolution.x/2, resolution.x/2,-resolution.y/2, resolution.y/2, this.near, this.far)        
 
         this.uniformBufferView!.set({
             viewMatrix: viewMatrx.toArrays(),

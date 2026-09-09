@@ -324,7 +324,7 @@ export default function EditorPage() {
         globalData: null,
       }
 
-      rendererRef.current.renderScene(SceneRenderCollector.collect(scene, camera), renderContext);
+      rendererRef.current.renderScene(SceneRenderCollector.collect(scene, camera, resolution), renderContext);
       rerenderOrderedRef.current = false;
     });
   }, []);

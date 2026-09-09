@@ -14,11 +14,22 @@ import { getSampleCamera } from "../../voxel_engine/scene-objects/camera/sample-
 import { VoxelEngineEvent } from "../../voxel_engine/events/event";
 import { Vectors } from "../../math/vectors";
 import { pickingInteractions, type PickingInteraction } from "../../voxel_engine/picking/picking-interactions";
+import { Plane } from "../../math/geometry/plane";
+import { Spaces } from "../../math/spaces";
+import { Ray } from "../../math/geometry/ray";
+import { planeRayIntersection } from "../../voxel_engine/intersection_tests/voxel-tests";
 
 
 type SelectSession = {
     startCoords: Vector3 | null, //if select session uses screen coordinates then ignore z parameter
     endCoords: Vector3 | null,
+}
+
+type VoxelsMoveSession = {
+    beg: Vector2 | null, //in screen space!
+    end: Vector2 | null,
+    moveDirection: "X" | "Y" | "Z" | null,
+    currentDelta: Vector3;
 }
 
 type CameraMoveSession = {
@@ -714,7 +725,142 @@ export class EditorController{
         }
     }
 
-    async handleCanvasPickingInteraction(pickingInteraction: PickingInteraction){
+    //move session
+    voxelsMoveSession: VoxelsMoveSession = {
+        beg: null,
+        end: null,
+        moveDirection: null,
+        currentDelta: new Vector3(0,0,0),
+    };
+
+    hasVoxelsMoveSessionStarted(){
+        return this.voxelsMoveSession.beg!==null;
+    }
+
+    getMoveAxisPlaneNormal(axis: "X" | "Y" | "Z", rayDirection: Vector3): Vector3 {
+        const candidates =
+            axis === "X"
+                ? [new Vector3(0, 1, 0), new Vector3(0, 0, 1)]
+                : axis === "Y"
+                    ? [new Vector3(1, 0, 0), new Vector3(0, 0, 1)]
+                    : [new Vector3(1, 0, 0), new Vector3(0, 1, 0)];
+
+        return Math.abs(rayDirection.dotProduct(candidates[0])) >
+            Math.abs(rayDirection.dotProduct(candidates[1])) ? candidates[0] : candidates[1];
+    }
+
+    getMoveSessionDelta(canvasSize: Vector2, begSs: Vector2, endSs: Vector2, axis: "X" | "Y" | "Z"): Vector3{
+        
+        let out: Vector3 = new Vector3(0,0,0);
+                
+        if(!this.initialized || !this.scene || !this.scene.getActiveVoxelObject() || !this.scene.getActiveCamera() || !this.hasVoxelsMoveSessionStarted()){
+            console.log(`[getMoveSessionDelta] move vector: GENERAL ERROR`);
+            return out;        
+        }        
+        const camera = this.scene.getActiveCamera()!;        
+        const object = this.scene.getActiveVoxelObject()!;
+        const selectedAreaMiddleGrid = object.getSelectedAreaMiddle('static');
+        //no voxels selected
+        if(!selectedAreaMiddleGrid){
+            console.log(`[getMoveSessionDelta] move vector: ERROR no voxels selected`);
+            return out;
+        }
+        const selectedAreaMiddleMs = object.voxelIdToModelSpace(selectedAreaMiddleGrid);
+
+        const projection = camera.getProjectionMatrix(canvasSize);
+        const view = camera.getCameraView();
+        const transform = Matrices4.transform(object.transform);
+
+        const sessionBegRayBeg: Vector3  = Spaces.screenToModel(begSs, canvasSize, 0,1, projection, view, transform)
+        const sessionBegRayEnd: Vector3  = Spaces.screenToModel(begSs, canvasSize, 1,1, projection, view, transform)
+        const sessionBegRayDir: Vector3  = sessionBegRayEnd.subVector(sessionBegRayBeg);
+        const sessionBegRay: Ray = new Ray(sessionBegRayBeg, sessionBegRayDir);
+
+        const sessionEndRayBeg: Vector3  = Spaces.screenToModel(endSs, canvasSize, 0,1, projection, view, transform)
+        const sessionEndRayEnd: Vector3  = Spaces.screenToModel(endSs, canvasSize, 1,1, projection, view, transform)
+        const sessionEndRayDir: Vector3  = sessionEndRayEnd.subVector(sessionEndRayBeg);
+        const sessionEndRay: Ray = new Ray(sessionEndRayBeg, sessionEndRayDir);        
+
+        const moveAxisPlaneNormal: Vector3 = this.getMoveAxisPlaneNormal(axis, sessionBegRayDir);
+
+        const moveAxisPlane = new Plane(moveAxisPlaneNormal, selectedAreaMiddleMs);
+
+        const begMs = planeRayIntersection(sessionBegRay, moveAxisPlane);
+        const endMs = planeRayIntersection(sessionEndRay, moveAxisPlane);
+        console.log(`[getMoveSessionDelta] begMs|endMs [${begMs}|${endMs}]`);
+
+        // This should never happen but safeguard if any ray is parallel to move axis  plane
+        if(!begMs || !endMs){
+            console.log(`[getMoveSessionDelta] move vector: ERROR - safeguard: begMS|endMS: ${begMs}|${endMs}`)   
+            return out;
+        }
+
+        const begToEndMsVector = endMs.subVector(begMs);
+        out = new Vector3(Math.round(begToEndMsVector.x / object.getVoxelSize()),
+                            Math.round(begToEndMsVector.y / object.getVoxelSize()),
+                            Math.round(begToEndMsVector.z / object.getVoxelSize())
+                        );
+        console.log(`[getMoveSessionDelta] move vector: ${out.toString()}`)                
+        return out;
+    }
+
+    finalizeVoxelsMove(){
+        if(!this.initialized || !this.scene || !this.scene.getActiveVoxelObject()) {
+            return
+        }
+
+        const activeVo = this.scene.getActiveVoxelObject()!;
+        activeVo.copyGhostVoxelsToGrid();
+        activeVo.clearGhostVoxels();
+    }
+
+    endVoxelsMoveSession(){       
+        this.voxelsMoveSession = {
+            beg: null,
+            end: null,
+            moveDirection: null,
+            currentDelta: new Vector3(0,0,0),
+        }
+    }
+
+    updateVoxelsMoveSession(pointerPos: Vector2, canvasSize: Vector2){
+        if(!this.hasVoxelsMoveSessionStarted() || !this.initialized || !this.scene || !this.scene.getActiveVoxelObject()){
+            return;
+        }
+        const scene = this.scene!;
+        const voxelObject = scene.getActiveVoxelObject()!;
+
+        const currentDelta = this.getMoveSessionDelta(canvasSize, this.voxelsMoveSession.beg!, pointerPos, this.voxelsMoveSession.moveDirection!
+        );
+        const delta = currentDelta.subVector(
+            this.voxelsMoveSession.currentDelta
+        );
+
+        let moved = voxelObject.moveGhostVoxels(delta, this.voxelsMoveSession.moveDirection!);
+        voxelObject.moveSelectedArea('static' ,delta, this.voxelsMoveSession.moveDirection!);
+        if(moved){
+                this.voxelsMoveSession.currentDelta = currentDelta;    
+        }
+    }
+
+    startVoxelsMoveSession(clickPos: Vector2,hitGridPosition: Vector3, canvasSize: Vector2, moveDirection: "X"|"Y"|"Z"){
+        if(!this.initialized || !this.scene || !this.scene.getActiveVoxelObject()) {
+            return
+        }
+        this.voxelsMoveSession.beg = clickPos;
+        this.voxelsMoveSession.end = clickPos;
+        this.voxelsMoveSession.moveDirection = moveDirection;  
+        this.voxelsMoveSession.currentDelta = new Vector3(0,0,0);                  
+        
+        const activeVo = this.scene.getActiveVoxelObject()!;
+        activeVo.clearGhostVoxels();        
+        activeVo.copySelectedAreaToGhostVoxels('static');
+        const removed = activeVo.removeSelectedVoxels('static');
+        
+    }
+
+    async handleCanvasPickingInteraction(pickingInteraction: PickingInteraction, clickPos: Vector2, hitGridPosition: Vector3, canvasSize: Vector2){
+        console.log(`[handleCanvasPickingInteraction] Starting voxels move session: ${pickingInteraction}`);
         if(pickingInteraction==='CameraGizmoPosX'){
             this.centerCameraAtPositiveX();
         }else if(pickingInteraction==='CameraGizmoNegX'){
@@ -727,6 +873,12 @@ export class EditorController{
             this.centerCameraAtPositiveZ();
         }else if(pickingInteraction==='CameraGizmoNegZ'){
             this.centerCameraAtNegativeZ();
+        }else if(pickingInteraction==='MoveGizmoX'){
+            this.startVoxelsMoveSession(clickPos, hitGridPosition, canvasSize, "X");      
+        }else if(pickingInteraction==='MoveGizmoY'){
+            this.startVoxelsMoveSession(clickPos, hitGridPosition, canvasSize, "Y");    
+        }else if(pickingInteraction==='MoveGizmoZ'){
+            this.startVoxelsMoveSession(clickPos, hitGridPosition, canvasSize, "Z");    
         }
     }
 
@@ -738,14 +890,10 @@ export class EditorController{
         const camera = scene.getActiveCamera();
         if(!voxelObject || !camera) return;        
         
+        this.finalizeVoxelsMove();
         const pickingInteractionId = await this.readIdTexture!(pointerPos);
-        if(pickingInteractionId){
-            const pickingInteraction = pickingInteractions.get(pickingInteractionId);
-            if(pickingInteraction){
-                this.handleCanvasPickingInteraction(pickingInteraction);
-            }
-            return;
-        }
+        
+
         
         const lastEmpty = this.editMode === "Add";
         const hitOnExit = true;
@@ -757,15 +905,24 @@ export class EditorController{
         if(!rayCastResults) return;
         const hitVoxel : Vector3 = rayCastResults.voxelCoords;
 
+        if(pickingInteractionId){
+            const pickingInteraction = pickingInteractions.get(pickingInteractionId);
+            if(pickingInteraction){
+                this.handleCanvasPickingInteraction(pickingInteraction, pointerPos, hitVoxel, canvasSize);
+                this.resetSelectSession();
+            }
+            return;
+        }
+
         let voxelObjectChanged = false;
         let selectedAreaChanged = false;        
-        const selectType : "dynamic" | "static" = this.editMode === "Select"? "static" : "dynamic";
-
+        const selectType : "dynamic" | "static" = (this.editMode === "Select" || this.editMode === "Move")? "static" : "dynamic";
+        const allowEmptyVoxelsSelection = this.editMode === "Move"? false: true;
         
         if(selectType === "static"){
             selectedAreaChanged = voxelObject.resetSelect("static")!=0;
             if(this.selectMode == "Voxel"){
-                selectedAreaChanged = voxelObject.selectVoxel(hitVoxel, "static") || selectedAreaChanged ;
+                selectedAreaChanged = voxelObject.selectVoxel(hitVoxel, "static", allowEmptyVoxelsSelection) || selectedAreaChanged ;
             } 
             else if(this.selectMode == "Face"){
                 selectedAreaChanged = voxelObject.selectFace(hitVoxel, rayCastResults.hitDirection, "static") || selectedAreaChanged;
@@ -798,8 +955,6 @@ export class EditorController{
                 selectedAreaChanged = voxelObject.resetSelect("dynamic")!=0;
             }else if(this.editMode=="PickColor"){
                 //todo
-            }else if(this.editMode=="Move"){
-                //todo: fun fun fun
             }
 
             if(this.selectMode=="Cube"){
@@ -826,10 +981,18 @@ export class EditorController{
         
         if(!voxelObject || !camera) return;
 
+        //const pickingInteractionId = await this.readIdTexture!(pointerPos);
+        if(this.hasVoxelsMoveSessionStarted()){    
+            console.log(`[handleCanvasPointerMove] updating voxels move session, session status ${this.hasVoxelsMoveSessionStarted()}`)
+            this.updateVoxelsMoveSession(pointerPos, canvasSize);     
+            this.renderScene!();
+            return;
+        }
+
         const lastEmpty = this.editMode === "Add";
         const hitOnExit = true;  
 
-        const selectType : "dynamic" | "static" = this.editMode === "Select"? "static" : "dynamic";
+        const selectType : "dynamic" | "static" = (this.editMode === "Select" || this.editMode==='Move')? "static" : "dynamic";
         
         const mvp = camera.getProjectionMatrix(canvasSize).multMatrix(Matrices4.transform(voxelObject.getObjectRo().worldTransform!)).multMatrix(camera.getCameraView());
 
@@ -894,6 +1057,9 @@ export class EditorController{
             }else if(this.editMode=="Select"){               
                 selectedAreaChanged = voxelObject.selectCube(this.selectSession.startCoords!, hitVoxel, "dynamic");  
             }
+            else if(this.editMode=="Move"){               
+                selectedAreaChanged = voxelObject.selectCube(this.selectSession.startCoords!, hitVoxel, "dynamic");  
+            }
         }else{
             if(this.editMode == "Add"){
                 if(this.selectMode=="Voxel" || this.selectMode=="Cube"){
@@ -928,6 +1094,9 @@ export class EditorController{
         const camera = scene.getActiveCamera();
         if(!voxelObject || !camera) return;
         
+        if(this.hasVoxelsMoveSessionStarted()){
+            this.endVoxelsMoveSession()
+        }        
         if(this.hasCameraMoveSessionStarted()){
             this.resetSelectSession();
         }       
@@ -951,6 +1120,8 @@ export class EditorController{
                     voxelObject.removeSelectedVoxels(selectType);
                 }else if(this.editMode=="Select"){                    
                     voxelObject.selectCube(this.selectSession.startCoords!, this.selectSession.endCoords, "static");
+                }else if(this.editMode=='Move'){
+                    voxelObject.selectCube(this.selectSession.startCoords!, this.selectSession.endCoords, "static", false);
                 }
             }
         }
@@ -963,6 +1134,7 @@ export class EditorController{
                     voxelObject.copyDynamicSelectedToStatic();
                 }
         }
+
         this.resetSelectSession();
         this.handleCanvasPointerMove(pointerPos, canvasSize);
         this.renderScene!();        
@@ -1005,6 +1177,60 @@ export class EditorController{
         const options = this.scene.getSeletedVoxelObjectRenderOptions();
         return options.borderOutline;
     }
+
+    toggleCameraControllGizmo(){
+        if(!this.initialized || !this.scene) return;
+        this.scene.toggleCameraControllGizmo();
+        this.renderScene!();
+    }
+
+    toggleObjectMoveGizmo(){
+        if(!this.initialized || !this.scene) return;
+        this.scene.toggleObjectMoveGizmo();
+        this.renderScene!();
+    }
+
+    setObjectMoveGizmo(on: boolean){
+        if(!this.initialized || !this.scene) return;
+        this.scene.setObjectMoveGizmo(on);
+        this.renderScene!();
+    }
+
+    toggleObjectResizeGizmo(){
+        if(!this.initialized || !this.scene) return;
+        this.scene.toggleObjectResizeGizmo();
+        this.renderScene!();
+    }
+
+    toggleObjectRotateGizmo(){
+        if(!this.initialized || !this.scene) return;
+        this.scene.toggleObjectRotateGizmo();
+        this.renderScene!();
+    }
+
+    isCameraControllGizmoOn(): boolean{
+        if(!this.initialized || !this.scene) return false;
+        const options = this.scene.getSceneGizmosRenderOptions();
+        return options.cameraControllGizmo;
+    }
+
+    isObjectMoveGizmoOn(): boolean{
+        if(!this.initialized || !this.scene) return false;
+        const options = this.scene.getSceneGizmosRenderOptions();
+        return options.objectMoveGizmo;
+    }
+
+    isObjectResizeGizmoOn(): boolean{
+        if(!this.initialized || !this.scene) return false;
+        const options = this.scene.getSceneGizmosRenderOptions();
+        return options.objectResizeGizmo;
+    }
+
+    isObjectRotateGizmoOn(): boolean{
+        if(!this.initialized || !this.scene) return false;
+        const options = this.scene.getSceneGizmosRenderOptions();
+        return options.objectRotateGizmo;
+    }    
 
     setSceneActiveObject(sceneId: number){
         if(!this.initialized || !this.scene) return;
@@ -1547,9 +1773,19 @@ export class EditorController{
     }
 
     setEditMode(editMode: EditMode){
+        // Reset static select area
+        // without it for example user could select empty area and then choose move mode to perform illegal action
+        if(this.scene && this.scene.getActiveVoxelObject()){
+            this.scene.getActiveVoxelObject()?.resetSelect('static');
+        } 
         const oldEditMode: EditMode = this.editMode;
         if(selectToEditCompatibility.get(this.selectMode)?.has(editMode)){
             this.editMode = editMode;
+            if(this.editMode === 'Move'){
+                this.setObjectMoveGizmo(true);
+            }else{
+                this.setObjectMoveGizmo(false);
+            }
             if(editMode!==oldEditMode) this.notifyOfEditModeChange();
         }
     }
